@@ -39,6 +39,21 @@
       "category": "requirements",
       "keywords": ["requirement-analysis", "requirement-elaboration", "backlog-refinement", "domain-knowledge", "competitive-insights", "user-journey", "personas", "usability", "adoption"],
       "license": "MIT"
+    },
+    {
+      "name": "incident-response",
+      "source": "./plugins/incident-response",
+      "description": "AI first-responder for live incidents. Correlates recent deployments with the incident window, surfaces error spikes and latency anomalies from Azure Monitor, suggests concrete mitigations and rollback candidates, and drafts a post-mortem timeline. Works with Azure DevOps Work Items, GitHub Issues, or plain text.",
+      "version": "1.0.0",
+      "author": {
+        "name": "99x",
+        "email": "xianix-agent@99x.io"
+      },
+      "homepage": "https://opensource.99x.io/xianix-team/",
+      "repository": "https://github.com/xianix-team/xianix-plugins-official",
+      "category": "incident-management",
+      "keywords": ["incident-response", "incident-management", "deployment-correlation", "log-analysis", "metrics-analysis", "postmortem", "azure-monitor", "azure-devops", "github", "on-call"],
+      "license": "MIT"
     }
   ]
 }

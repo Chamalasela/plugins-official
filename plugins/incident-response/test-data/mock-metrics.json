@@ -1,0 +1,117 @@
+{
+  "_description": "Simulated az monitor metrics list output for payment-service during INC-4821 blast radius window. Resource: /subscriptions/sub-mock/resourceGroups/rg-xianix-prod/providers/Microsoft.Web/sites/payment-service",
+  "_analysis_hints": {
+    "baseline_window": "2024-03-15T12:30:00Z to 2024-03-15T13:00:00Z",
+    "response_time_baseline_avg_ms": 181,
+    "http5xx_baseline_per_15min": 1,
+    "first_response_time_anomaly": "2024-03-15T14:00:00Z (312ms — first bucket exceeding 1.5× baseline of 181ms)",
+    "first_error_rate_anomaly": "2024-03-15T14:00:00Z (28 errors vs baseline ~1)",
+    "trend_at_window_end": "escalating"
+  },
+  "value": [
+    {
+      "id": "/subscriptions/sub-mock/resourceGroups/rg-xianix-prod/providers/Microsoft.Web/sites/payment-service/providers/microsoft.insights/metrics/AverageResponseTime",
+      "type": "Microsoft.Insights/metrics",
+      "name": {
+        "value": "AverageResponseTime",
+        "localizedValue": "Average Response Time"
+      },
+      "displayDescription": "Average time taken to serve requests",
+      "unit": "Milliseconds",
+      "timeseries": [
+        {
+          "metadatavalues": [],
+          "data": [
+            { "timeStamp": "2024-03-15T12:30:00Z", "average": 176 },
+            { "timeStamp": "2024-03-15T12:45:00Z", "average": 183 },
+            { "timeStamp": "2024-03-15T13:00:00Z", "average": 178 },
+            { "timeStamp": "2024-03-15T13:15:00Z", "average": 181 },
+            { "timeStamp": "2024-03-15T13:30:00Z", "average": 175 },
+            { "timeStamp": "2024-03-15T13:45:00Z", "average": 195 },
+            { "timeStamp": "2024-03-15T14:00:00Z", "average": 312 },
+            { "timeStamp": "2024-03-15T14:15:00Z", "average": 847 },
+            { "timeStamp": "2024-03-15T14:30:00Z", "average": 2410 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/subscriptions/sub-mock/resourceGroups/rg-xianix-prod/providers/Microsoft.Web/sites/payment-service/providers/microsoft.insights/metrics/Http5xx",
+      "type": "Microsoft.Insights/metrics",
+      "name": {
+        "value": "Http5xx",
+        "localizedValue": "Http Server Errors"
+      },
+      "displayDescription": "Count of HTTP 5xx responses served",
+      "unit": "Count",
+      "timeseries": [
+        {
+          "metadatavalues": [],
+          "data": [
+            { "timeStamp": "2024-03-15T12:30:00Z", "total": 1 },
+            { "timeStamp": "2024-03-15T12:45:00Z", "total": 0 },
+            { "timeStamp": "2024-03-15T13:00:00Z", "total": 1 },
+            { "timeStamp": "2024-03-15T13:15:00Z", "total": 0 },
+            { "timeStamp": "2024-03-15T13:30:00Z", "total": 2 },
+            { "timeStamp": "2024-03-15T13:45:00Z", "total": 1 },
+            { "timeStamp": "2024-03-15T14:00:00Z", "total": 28 },
+            { "timeStamp": "2024-03-15T14:15:00Z", "total": 156 },
+            { "timeStamp": "2024-03-15T14:30:00Z", "total": 421 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/subscriptions/sub-mock/resourceGroups/rg-xianix-prod/providers/Microsoft.Web/sites/payment-service/providers/microsoft.insights/metrics/CpuPercentage",
+      "type": "Microsoft.Insights/metrics",
+      "name": {
+        "value": "CpuPercentage",
+        "localizedValue": "CPU Percentage"
+      },
+      "displayDescription": "Average CPU usage",
+      "unit": "Percent",
+      "timeseries": [
+        {
+          "metadatavalues": [],
+          "data": [
+            { "timeStamp": "2024-03-15T12:30:00Z", "average": 22 },
+            { "timeStamp": "2024-03-15T12:45:00Z", "average": 24 },
+            { "timeStamp": "2024-03-15T13:00:00Z", "average": 21 },
+            { "timeStamp": "2024-03-15T13:15:00Z", "average": 23 },
+            { "timeStamp": "2024-03-15T13:30:00Z", "average": 22 },
+            { "timeStamp": "2024-03-15T13:45:00Z", "average": 28 },
+            { "timeStamp": "2024-03-15T14:00:00Z", "average": 45 },
+            { "timeStamp": "2024-03-15T14:15:00Z", "average": 67 },
+            { "timeStamp": "2024-03-15T14:30:00Z", "average": 78 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/subscriptions/sub-mock/resourceGroups/rg-xianix-prod/providers/Microsoft.Web/sites/payment-service/providers/microsoft.insights/metrics/MemoryPercentage",
+      "type": "Microsoft.Insights/metrics",
+      "name": {
+        "value": "MemoryPercentage",
+        "localizedValue": "Memory Percentage"
+      },
+      "displayDescription": "Average memory usage",
+      "unit": "Percent",
+      "timeseries": [
+        {
+          "metadatavalues": [],
+          "data": [
+            { "timeStamp": "2024-03-15T12:30:00Z", "average": 48 },
+            { "timeStamp": "2024-03-15T12:45:00Z", "average": 49 },
+            { "timeStamp": "2024-03-15T13:00:00Z", "average": 48 },
+            { "timeStamp": "2024-03-15T13:15:00Z", "average": 50 },
+            { "timeStamp": "2024-03-15T13:30:00Z", "average": 49 },
+            { "timeStamp": "2024-03-15T13:45:00Z", "average": 52 },
+            { "timeStamp": "2024-03-15T14:00:00Z", "average": 61 },
+            { "timeStamp": "2024-03-15T14:15:00Z", "average": 74 },
+            { "timeStamp": "2024-03-15T14:30:00Z", "average": 83 }
+          ]
+        }
+      ]
+    }
+  ]
+}

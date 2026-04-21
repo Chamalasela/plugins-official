@@ -1,0 +1,95 @@
+{
+  "count": 3,
+  "value": [
+    {
+      "id": 8821,
+      "buildNumber": "payment-service.2024.3.15.1",
+      "queueTime": "2024-03-15T13:30:00Z",
+      "startTime": "2024-03-15T13:32:00Z",
+      "finishTime": "2024-03-15T13:45:00Z",
+      "result": "succeeded",
+      "status": "completed",
+      "sourceBranch": "refs/heads/release/v2.4.1",
+      "sourceVersion": "a3f8c12d9e01b4567890abcdef1234567890abcd",
+      "repository": {
+        "id": "repo-001",
+        "name": "payment-service",
+        "type": "TfsGit"
+      },
+      "requestedFor": {
+        "displayName": "Release Pipeline",
+        "uniqueName": "release-pipeline@99x.io"
+      },
+      "definition": {
+        "id": 42,
+        "name": "payment-service-release"
+      },
+      "project": {
+        "id": "proj-001",
+        "name": "XianixPlatform"
+      },
+      "tags": ["payment-service", "production", "v2.4.1", "loyalty-feature"],
+      "_note": "LIKELY CAUSE — deployed 45 min before incident start, payment-service matches affected_services"
+    },
+    {
+      "id": 8819,
+      "buildNumber": "shared-config.2024.3.15.1",
+      "queueTime": "2024-03-15T12:58:00Z",
+      "startTime": "2024-03-15T13:00:00Z",
+      "finishTime": "2024-03-15T13:10:00Z",
+      "result": "succeeded",
+      "status": "completed",
+      "sourceBranch": "refs/heads/main",
+      "sourceVersion": "b9e4d56f2a34c78901234567890abcdef12345678",
+      "repository": {
+        "id": "repo-007",
+        "name": "shared-config",
+        "type": "TfsGit"
+      },
+      "requestedFor": {
+        "displayName": "Release Pipeline",
+        "uniqueName": "release-pipeline@99x.io"
+      },
+      "definition": {
+        "id": 18,
+        "name": "shared-config-release"
+      },
+      "project": {
+        "id": "proj-001",
+        "name": "XianixPlatform"
+      },
+      "tags": ["shared-config", "production", "all-services"],
+      "_note": "POSSIBLE CAUSE — shared-config touches all services including payment-service; deployed 80 min before incident"
+    },
+    {
+      "id": 8815,
+      "buildNumber": "analytics-service.2024.3.15.1",
+      "queueTime": "2024-03-15T12:43:00Z",
+      "startTime": "2024-03-15T12:45:00Z",
+      "finishTime": "2024-03-15T12:55:00Z",
+      "result": "succeeded",
+      "status": "completed",
+      "sourceBranch": "refs/heads/release/v1.8.0",
+      "sourceVersion": "c7f1e23a4b56d890123456789012345678901234",
+      "repository": {
+        "id": "repo-012",
+        "name": "analytics-service",
+        "type": "TfsGit"
+      },
+      "requestedFor": {
+        "displayName": "Release Pipeline",
+        "uniqueName": "release-pipeline@99x.io"
+      },
+      "definition": {
+        "id": 31,
+        "name": "analytics-service-release"
+      },
+      "project": {
+        "id": "proj-001",
+        "name": "XianixPlatform"
+      },
+      "tags": ["analytics-service", "production", "v1.8.0"],
+      "_note": "UNRELATED — analytics-service has no dependency on payment-service or order-fulfillment-service"
+    }
+  ]
+}

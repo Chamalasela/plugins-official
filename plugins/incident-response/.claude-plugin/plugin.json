@@ -1,0 +1,11 @@
+{
+  "name": "incident-response",
+  "version": "1.0.0",
+  "description": "AI first-responder for live incidents. Correlates deployments, surfaces log and metrics anomalies, suggests mitigations, and drafts a post-mortem.",
+  "commands": ["./commands/incident-response.md"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "outputStyles": "./styles/",
+  "providers": "./providers/",
+  "lspServers": "./.lsp.json"
+}

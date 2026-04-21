@@ -1,0 +1,57 @@
+{
+  "_description": "Simulated KQL query results from az monitor log-analytics query. Represents AppExceptions table output for INC-4821 blast radius window (2024-03-15T12:30:00Z to 2024-03-15T15:00:00Z). Error spike begins at 14:05 UTC — approximately 20 minutes after deployment 8821 completed.",
+  "tables": [
+    {
+      "name": "PrimaryResult",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime" },
+        { "name": "ExceptionType", "type": "string" },
+        { "name": "ErrorCount", "type": "long" }
+      ],
+      "rows": [
+        ["2024-03-15T12:30:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T12:35:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T12:40:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T12:45:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T12:50:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T12:55:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:00:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T13:05:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:10:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T13:15:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:20:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T13:25:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:30:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:35:00Z", "System.TimeoutException", 1],
+        ["2024-03-15T13:40:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:45:00Z", "System.TimeoutException", 2],
+        ["2024-03-15T13:50:00Z", "System.TimeoutException", 3],
+        ["2024-03-15T13:55:00Z", "System.TimeoutException", 3],
+        ["2024-03-15T14:00:00Z", "System.TimeoutException", 5],
+        ["2024-03-15T14:05:00Z", "System.TimeoutException", 11],
+        ["2024-03-15T14:05:00Z", "System.Data.SqlException", 4],
+        ["2024-03-15T14:10:00Z", "System.TimeoutException", 22],
+        ["2024-03-15T14:10:00Z", "System.Data.SqlException", 9],
+        ["2024-03-15T14:15:00Z", "System.TimeoutException", 38],
+        ["2024-03-15T14:15:00Z", "System.Data.SqlException", 19],
+        ["2024-03-15T14:20:00Z", "System.TimeoutException", 55],
+        ["2024-03-15T14:20:00Z", "System.Data.SqlException", 31],
+        ["2024-03-15T14:25:00Z", "System.TimeoutException", 72],
+        ["2024-03-15T14:25:00Z", "System.Data.SqlException", 47],
+        ["2024-03-15T14:30:00Z", "System.TimeoutException", 89],
+        ["2024-03-15T14:30:00Z", "System.Data.SqlException", 58],
+        ["2024-03-15T14:35:00Z", "System.TimeoutException", 134],
+        ["2024-03-15T14:35:00Z", "System.Data.SqlException", 87]
+      ]
+    }
+  ],
+  "_analysis_hints": {
+    "baseline_window": "2024-03-15T12:30:00Z to 2024-03-15T13:00:00Z",
+    "baseline_avg_per_5min": 1.5,
+    "first_anomaly_timestamp": "2024-03-15T14:05:00Z",
+    "anomaly_threshold_exceeded": "2× baseline at 14:05 UTC (11 errors vs baseline ~2)",
+    "peak_error_bucket": "2024-03-15T14:35:00Z — 134 TimeoutException + 87 SqlException",
+    "dominant_exception": "System.TimeoutException (connection pool exhaustion pattern)",
+    "secondary_exception": "System.Data.SqlException (likely caused by pool exhaustion cascading to DB timeouts)"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "_description": "Simulated ADO REST API response for POST /_apis/wit/workitems/$Bug — root cause investigation bug created by the incident-response agent for INC-4821. Represents the work item created when the mitigation advisor identifies a high-confidence root cause and the post-response phase is executed against an Azure DevOps project.",
+  "_request": {
+    "method": "POST",
+    "url": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/$Bug?api-version=7.0",
+    "headers": {
+      "Authorization": "Basic <B64_TOKEN>",
+      "Content-Type": "application/json-patch+json"
+    },
+    "body": [
+      { "op": "add", "path": "/fields/System.Title",             "value": "[Root Cause Investigation] #4821: DB connection pool exhaustion — payment-service v2.4.1" },
+      { "op": "add", "path": "/fields/Microsoft.VSTS.TCM.ReproSteps", "value": "<p>Deployment 8821 (payment-service.2024.3.15.1) completed at 13:45 UTC. Approximately 20 minutes later, <code>System.Data.SqlException</code> and <code>System.TimeoutException</code> counts began rising, with SqlException peaking at 87 per 5-min bucket at 14:35 UTC. The pattern is consistent with DB connection pool exhaustion introduced by the loyalty points schema migration shipped in v2.4.1. Investigate the <code>maxPoolSize</code> setting change and whether the schema migration holds locks that prevent connections from being released under production load.</p>" },
+      { "op": "add", "path": "/fields/Microsoft.VSTS.Common.Severity", "value": "1 - Critical" },
+      { "op": "add", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": 1 },
+      { "op": "add", "path": "/fields/System.Tags",              "value": "incident-response; ai-generated; INC-4821; payment-service; sev2" },
+      { "op": "add", "path": "/fields/System.AreaPath",          "value": "XianixPlatform\\PaymentTeam" },
+      { "op": "add", "path": "/fields/System.AssignedTo",        "value": "" },
+      { "op": "add", "path": "/relations/-",                     "value": {
+        "rel": "System.LinkTypes.Hierarchy-Reverse",
+        "url": "https://dev.azure.com/{org}/_apis/wit/workitems/4821",
+        "attributes": { "comment": "Created by incident-response agent — linked to parent incident INC-4821" }
+      }}
+    ]
+  },
+  "_response_status": 200,
+  "id": 9102,
+  "rev": 1,
+  "fields": {
+    "System.AreaId": 301,
+    "System.AreaPath": "XianixPlatform\\PaymentTeam",
+    "System.TeamProject": "XianixPlatform",
+    "System.NodeName": "PaymentTeam",
+    "System.AreaLevel1": "XianixPlatform",
+    "System.AreaLevel2": "PaymentTeam",
+    "System.Rev": 1,
+    "System.AuthorizedDate": "2024-03-15T15:02:00Z",
+    "System.RevisedDate": "9999-01-01T00:00:00Z",
+    "System.IterationId": 88,
+    "System.IterationPath": "XianixPlatform\\Sprint 42",
+    "System.IterationLevel1": "XianixPlatform",
+    "System.IterationLevel2": "Sprint 42",
+    "System.WorkItemType": "Bug",
+    "System.State": "New",
+    "System.Reason": "New",
+    "System.CreatedDate": "2024-03-15T15:02:00Z",
+    "System.CreatedBy": {
+      "displayName": "Xianix Incident Response Agent",
+      "url": "https://spsprodeus27.vssps.visualstudio.com/_apis/Identities/agent-identity",
+      "id": "agent-00000000-0000-0000-0000-000000000001",
+      "uniqueName": "incident-response-agent@xianix.io",
+      "imageUrl": "https://dev.azure.com/{org}/_api/_common/identityImage?id=agent-identity",
+      "descriptor": "aad.agent-descriptor"
+    },
+    "System.ChangedDate": "2024-03-15T15:02:00Z",
+    "System.ChangedBy": {
+      "displayName": "Xianix Incident Response Agent",
+      "url": "https://spsprodeus27.vssps.visualstudio.com/_apis/Identities/agent-identity",
+      "id": "agent-00000000-0000-0000-0000-000000000001",
+      "uniqueName": "incident-response-agent@xianix.io",
+      "imageUrl": "https://dev.azure.com/{org}/_api/_common/identityImage?id=agent-identity",
+      "descriptor": "aad.agent-descriptor"
+    },
+    "System.AuthorizedAs": {
+      "displayName": "Xianix Incident Response Agent",
+      "id": "agent-00000000-0000-0000-0000-000000000001",
+      "uniqueName": "incident-response-agent@xianix.io"
+    },
+    "System.PersonId": 91021,
+    "System.Watermark": 90210,
+    "System.Title": "[Root Cause Investigation] #4821: DB connection pool exhaustion — payment-service v2.4.1",
+    "System.BoardColumn": "New",
+    "System.BoardColumnDone": false,
+    "System.CommentCount": 0,
+    "System.Tags": "INC-4821; ai-generated; incident-response; payment-service; sev2",
+    "System.AssignedTo": "",
+    "Microsoft.VSTS.Common.Severity": "1 - Critical",
+    "Microsoft.VSTS.Common.Priority": 1,
+    "Microsoft.VSTS.Common.StateChangeDate": "2024-03-15T15:02:00Z",
+    "Microsoft.VSTS.Common.ActivatedDate": "2024-03-15T15:02:00Z",
+    "Microsoft.VSTS.TCM.ReproSteps": "<p>Deployment 8821 (payment-service.2024.3.15.1) completed at 13:45 UTC. Approximately 20 minutes later, <code>System.Data.SqlException</code> and <code>System.TimeoutException</code> counts began rising, with SqlException peaking at 87 per 5-min bucket at 14:35 UTC. The pattern is consistent with DB connection pool exhaustion introduced by the loyalty points schema migration shipped in v2.4.1. Investigate the <code>maxPoolSize</code> setting change and whether the schema migration holds locks that prevent connections from being released under production load.</p>",
+    "Microsoft.VSTS.TCM.SystemInfo": "<p>Environment: production<br/>Service: payment-service<br/>Build: payment-service.2024.3.15.1 (Deployment 8821)<br/>Commit: a3f8c12d9e01b4567890abcdef1234567890abcd<br/>Branch: refs/heads/release/v2.4.1</p>"
+  },
+  "relations": [
+    {
+      "rel": "System.LinkTypes.Hierarchy-Reverse",
+      "url": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/4821",
+      "attributes": {
+        "isLocked": false,
+        "comment": "Created by incident-response agent — linked to parent incident INC-4821",
+        "name": "Parent"
+      }
+    }
+  ],
+  "_links": {
+    "self": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/9102"
+    },
+    "workItemUpdates": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/9102/updates"
+    },
+    "workItemRevisions": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/9102/revisions"
+    },
+    "workItemComments": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/9102/comments"
+    },
+    "html": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_workitems/edit/9102"
+    },
+    "workItemType": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workItemTypes/Bug"
+    },
+    "fields": {
+      "href": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/fields"
+    }
+  },
+  "url": "https://dev.azure.com/{org}/XianixPlatform/_apis/wit/workitems/9102"
+}
