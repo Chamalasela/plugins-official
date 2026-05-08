@@ -1,0 +1,145 @@
+# Provider: GitHub
+
+Use this provider when `git remote get-url origin` contains `github.com`.
+
+## How This Fits with the Rest of the Plugin
+
+- **Reading** — Use `gh` to fetch PR/issue metadata, comments, linked issues, and commit messages.
+- **Posting** — Use `gh pr comment` or `gh issue comment` to post the test execution report and any interim notices (no URL found, auto-generated plan).
+
+GitHub does not support file attachments on issue/PR comments, so screenshots are described inline as "Screenshot captured at point of failure" rather than embedded as files.
+
+## Prerequisites
+
+The `gh` CLI must be installed and authenticated. Verify with:
+
+```bash
+gh auth status
+```
+
+If not authenticated, run `gh auth login` or set the `GITHUB_TOKEN` environment variable.
+
+### Token Permissions
+
+| Permission | Access | Why it's needed |
+|---|---|---|
+| **Metadata** | Read | Resolve repository owner and name |
+| **Issues** | Read & Write | Fetch issue body and comments; post result comment |
+| **Pull requests** | Read & Write | Fetch PR body, commits, and comments; post result comment |
+
+---
+
+## Resolving Owner and Repo
+
+```bash
+REMOTE=$(git remote get-url origin)
+OWNER=$(echo "$REMOTE" | sed 's|https://github.com/||;s|git@github.com:||' | cut -d'/' -f1)
+REPO=$(echo "$REMOTE"  | sed 's|https://github.com/||;s|git@github.com:||' | cut -d'/' -f2 | sed 's|\.git$||')
+```
+
+---
+
+## Fetching PR Content
+
+```bash
+gh pr view ${PR_NUMBER} --json number,title,body,state,headRefName,baseRefName,url,author,labels,commits,closingIssuesReferences,comments
+```
+
+Fetching comments separately if needed:
+```bash
+gh api "repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments" \
+  --jq '.[].body'
+```
+
+Linked issues:
+```bash
+gh pr view ${PR_NUMBER} --json closingIssuesReferences --jq '.closingIssuesReferences[].number'
+```
+
+---
+
+## Fetching Issue Content
+
+```bash
+gh issue view ${ISSUE_NUMBER} --json number,title,body,state,labels,assignees,comments,projectItems
+```
+
+Linked PRs from an issue:
+```bash
+gh api "repos/${OWNER}/${REPO}/issues/${ISSUE_NUMBER}/timeline" --paginate \
+  --jq '.[] | select(.event=="cross-referenced" or .event=="closed") | .source.issue.number // empty'
+
+gh pr list --search "${ISSUE_NUMBER} in:body" --state all \
+  --json number,title,state,headRefName,url,body --limit 20
+```
+
+---
+
+## Posting the "No URL Found" Comment
+
+**PR:**
+```bash
+gh pr comment ${PR_NUMBER} --body "🤖 web-app-tester could not run — no testable URL was found.
+Add a comment with the URL (e.g. Preview URL: https://...) and re-trigger."
+```
+
+**Issue:**
+```bash
+gh issue comment ${ISSUE_NUMBER} --body "🤖 web-app-tester could not run — no testable URL was found.
+Add a comment with the URL (e.g. Preview URL: https://...) and re-trigger."
+```
+
+---
+
+## Posting the Auto-Generated Plan Comment
+
+**PR:**
+```bash
+gh pr comment ${PR_NUMBER} --body "$(cat <<'EOF'
+🤖 web-app-tester — No test plan found. Auto-generated plan, executing now:
+
+${AUTO_GENERATED_STEPS}
+EOF
+)"
+```
+
+**Issue:**
+```bash
+gh issue comment ${ISSUE_NUMBER} --body "$(cat <<'EOF'
+🤖 web-app-tester — No test plan found. Auto-generated plan, executing now:
+
+${AUTO_GENERATED_STEPS}
+EOF
+)"
+```
+
+---
+
+## Posting the Test Execution Report
+
+Construct the full report body following `styles/report-template.md`, then post it.
+
+**PR:**
+```bash
+gh pr comment ${PR_NUMBER} --body "$(cat <<'EOF'
+${REPORT_BODY}
+EOF
+)"
+```
+
+**Issue:**
+```bash
+gh issue comment ${ISSUE_NUMBER} --body "$(cat <<'EOF'
+${REPORT_BODY}
+EOF
+)"
+```
+
+---
+
+## Output
+
+On completion:
+```
+web-app-tester complete for {ENTRY_TYPE} #{ENTRY_ID}: {OVERALL_RESULT} — {PASSED}/{TOTAL} steps passed
+```
