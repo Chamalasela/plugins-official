@@ -1,7 +1,7 @@
 {
   "name": "web-app-tester",
   "version": "1.0.0",
-  "description": "Automated web app behaviour verification triggered from a GitHub PR or Issue. Finds a testable URL from comments, runs or auto-generates a test plan using Playwright MCP, and posts a structured test execution report as a GitHub comment.",
+  "description": "Automated web app behaviour verification triggered from a GitHub PR or Issue. Finds a testable URL from comments, runs or auto-generates a test plan using Playwright CLI (headless Chromium), and posts a structured test execution report as a GitHub comment.",
   "author": {
     "name": "Xianix",
     "email": "hello@xianix.com",
@@ -26,13 +26,6 @@
     "./agents/orchestrator.md"
   ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "outputStyles": "./styles/",
-  "providers": "./providers/",
-  "mcpServers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    }
-  }
+  "providers": "./providers/"
 }

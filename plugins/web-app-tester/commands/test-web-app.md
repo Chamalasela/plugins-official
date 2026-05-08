@@ -1,6 +1,6 @@
 ---
 name: test-web-app
-description: Verify web app behaviour for a GitHub PR or Issue using Playwright MCP. Finds the testable URL from comments, runs (or auto-generates) a structured test plan, and posts a step-by-step test execution report as a GitHub comment. Usage: /test-web-app [pr <n> | issue <n>]
+description: Verify web app behaviour for a GitHub PR or Issue using Playwright CLI (headless Chromium). Finds the testable URL from comments, runs (or auto-generates) a structured test plan, and posts a step-by-step test execution report as a GitHub comment. Usage: /test-web-app [pr <n> | issue <n>]
 argument-hint: [pr <n> | issue <n>]
 ---
 
@@ -13,7 +13,7 @@ Invokes the **orchestrator** agent to:
 1. Fetch the PR or Issue description, all comments, linked commits, and linked issues
 2. Scan all content for a testable URL (`Preview URL:`, `Staging URL:`, `Deploy preview:`, etc.)
 3. Find a structured test plan in comments, or auto-generate one from the PR/issue context
-4. Execute the test plan step by step using Playwright MCP in a fresh browser session
+4. Execute the test plan step by step using Playwright CLI (headless Chromium) in a single browser session
 5. Post a structured test execution report as a GitHub comment
 
 ## Entry Points
@@ -51,8 +51,9 @@ Failed and blocked steps are retried up to 3 times before being marked final.
 
 ## Prerequisites
 
+- Node.js 20+ available (`node --version`)
 - `gh` CLI installed and authenticated (run `gh auth login` or set `GITHUB_TOKEN`)
-- Playwright MCP server configured in `claude_desktop_config.json` (see `docs/mcp-config.md`)
+- See `docs/setup.md` for full setup instructions
 
 ---
 
