@@ -1,7 +1,7 @@
 ---
 name: test-web-app
-description: Verify web app behaviour for a GitHub PR or Issue using Playwright CLI (headless Chromium). Finds the testable URL from comments, runs (or auto-generates) a structured test plan, and posts a step-by-step test execution report as a GitHub comment. Usage: /test-web-app [pr <n> | issue <n>]
-argument-hint: [pr <n> | issue <n>]
+description: Verify web app behaviour for a GitHub PR/Issue or Azure DevOps PR/Bug using Playwright CLI (headless Chromium). Finds the testable URL from comments, runs (or auto-generates) a structured test plan, and posts a step-by-step test execution report. Usage: /test-web-app [pr <n> | issue <n> | wi <id>]
+argument-hint: [pr <n> | issue <n> | wi <id>]
 ---
 
 Run automated web app behaviour verification for $ARGUMENTS.
@@ -10,19 +10,20 @@ Run automated web app behaviour verification for $ARGUMENTS.
 
 Invokes the **orchestrator** agent to:
 
-1. Fetch the PR or Issue description, all comments, linked commits, and linked issues
+1. Fetch the PR, Issue, or Bug (work item) description, all comments, linked items, and commits
 2. Scan all content for a testable URL (`Preview URL:`, `Staging URL:`, `Deploy preview:`, etc.)
-3. Find a structured test plan in comments, or auto-generate one from the PR/issue context
+3. Find a structured test plan in comments, or auto-generate one from context (Bug repro steps are used directly as the test plan seed)
 4. Execute the test plan step by step using Playwright CLI (headless Chromium) in a single browser session
-5. Post a structured test execution report as a GitHub comment
+5. Post a structured test execution report as a comment on the PR (and a notification on the work item for `wi` entry)
 
 ## Entry Points
 
-| Entry Point | Example | What the agent does |
-|---|---|---|
-| **PR number** | `/test-web-app pr 42` | Fetches PR content, linked issues, and executes browser tests |
-| **Issue number** | `/test-web-app issue 88` | Fetches issue content, linked PRs, and executes browser tests |
-| **No argument** | `/test-web-app` | Infers the PR from the current branch |
+| Entry Point | Platform | Example | What the agent does |
+|---|---|---|---|
+| **PR number** | GitHub or Azure DevOps | `/test-web-app pr 42` | Fetches PR content, linked items, and executes browser tests |
+| **Issue number** | GitHub only | `/test-web-app issue 88` | Fetches issue content, linked PRs, and executes browser tests |
+| **Work item ID** | Azure DevOps only | `/test-web-app wi 1234` | Fetches bug repro steps, finds linked PR for URL, executes browser tests |
+| **No argument** | GitHub or Azure DevOps | `/test-web-app` | Infers the PR from the current branch |
 
 ## Test Plan Discovery
 
@@ -53,7 +54,8 @@ Failed and blocked steps are retried up to 3 times before being marked final.
 
 - Node.js 20+ available (`node --version`)
 - `playwright-cli` installed globally (`npm install -g @playwright/cli`), or `npx` available as fallback
-- `gh` CLI installed and authenticated (run `gh auth login` or set `GITHUB_TOKEN`)
+- **GitHub repos:** `gh` CLI installed and authenticated (run `gh auth login` or set `GITHUB_TOKEN`)
+- **Azure DevOps repos:** `curl` available and `AZURE_DEVOPS_TOKEN` set to a valid PAT
 - See `docs/setup.md` for full setup instructions
 
 ---

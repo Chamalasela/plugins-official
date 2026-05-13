@@ -1,6 +1,6 @@
 ---
 name: post-test-report
-description: Phase 3 of web-app-tester. Computes the overall verdict (PASSED / FAILED / BLOCKED) from the inline step results, composes a single GitHub comment that conforms exactly to the report template, and posts it via the GitHub provider. The report is strictly bounded — no recommendations, no root-cause analysis, no commentary outside the defined sections.
+description: Phase 3 of web-app-tester. Computes the overall verdict (PASSED / FAILED / BLOCKED) from the inline step results, composes a report that conforms exactly to the report template, and posts it via the correct provider (GitHub or Azure DevOps). For wi entry points on Azure DevOps, also posts a notification comment on the work item. The report is strictly bounded — no recommendations, no root-cause analysis, no commentary outside the defined sections.
 disable-model-invocation: true
 ---
 
@@ -15,11 +15,14 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | Inline result list | run-playwright-session | One entry per step: `{ n, desc, status, reason, screenshot }` |
 | `TEST_URL` | gather-test-context | URL that was tested |
 | `PRODUCTION_WARNING` | gather-test-context | Whether read-only mode was applied |
-| `ENTRY_TYPE`, `ENTRY_ID` | orchestrator | PR or Issue number |
+| `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
+| `ENTRY_ID` | orchestrator | PR number, issue number, or work item ID |
+| `PLATFORM` | orchestrator | `GitHub` or `AzureDevOps` |
+| `LINKED_PR_ID` | gather-test-context | Azure DevOps `wi` entry only: the PR linked to the work item |
 
 ## Outputs
 
-A single GitHub comment posted on the PR or issue, plus a one-line confirmation written to stdout.
+A single report comment posted on the PR or issue, plus (for `wi` entry) a notification on the work item, plus a one-line confirmation written to stdout.
 
 ---
 
@@ -35,7 +38,7 @@ Determine the overall result from the per-step statuses:
 
 A run with both FAILED and BLOCKED steps uses **BLOCKED** as the overall result.
 
-Store as `OVERALL_RESULT`.
+Store as `OVERALL_RESULT`, `PASSED` (count), `FAILED` (count), `BLOCKED` (count), `TOTAL` (count).
 
 ---
 
@@ -65,7 +68,7 @@ Reason: {what went wrong after 3 retries}
 
 Step descriptions in the report must be in **business language** — describe the user action and observed outcome, not the Playwright command. See the `Step Description Format` section in `styles/report-template.md` for examples.
 
-For FAILED and BLOCKED steps, screenshots are **described inline** as "captured at point of failure" — GitHub PR/issue comments do not support direct file attachments via `gh comment`, so the PNG files referenced in `screenshot` are not uploaded.
+For FAILED and BLOCKED steps, screenshots are **described inline** as "captured at point of failure" — neither GitHub nor Azure DevOps PR comments support direct file attachments, so the PNG files are not uploaded.
 
 Store as `REPORT_BODY`.
 
@@ -73,9 +76,27 @@ Store as `REPORT_BODY`.
 
 ## Step 3: Post the Report
 
-Read and follow `providers/github.md` to post the report comment. The provider file owns the exact `gh pr comment` / `gh issue comment` invocation and the heredoc pattern needed to preserve formatting.
+Read the correct provider file and post using the appropriate command:
+
+### GitHub
+
+Read and follow `providers/github.md`.
+
+- `ENTRY_TYPE == pr` → `gh pr comment ${ENTRY_ID}` with `REPORT_BODY`
+- `ENTRY_TYPE == issue` → `gh issue comment ${ENTRY_ID}` with `REPORT_BODY`
 
 Post a **single comment**. Never split the report across multiple comments.
+
+### Azure DevOps
+
+Read and follow `providers/azure-devops.md`.
+
+- `ENTRY_TYPE == pr` → post the full report as a PR thread comment on PR `${ENTRY_ID}`
+- `ENTRY_TYPE == wi` → two posts:
+  1. Post the full report as a PR thread comment on `LINKED_PR_ID`
+  2. Post a notification comment on the work item `${ENTRY_ID}` (brief summary only — `OVERALL_RESULT`, step counts, `TEST_URL`, reference to the PR)
+
+See `providers/azure-devops.md` for the exact `curl` commands for each case.
 
 ---
 

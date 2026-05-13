@@ -1,6 +1,6 @@
 ---
 name: gather-test-context
-description: Phase 1 of web-app-tester. Fetches the PR or issue content (description, comments, commits, linked items) via the GitHub CLI, scans it for a testable URL, applies the production-URL safety check, and either finds an existing structured test plan or auto-generates one. Outputs TEST_URL, PRODUCTION_WARNING, and TEST_PLAN for the execution phase.
+description: Phase 1 of web-app-tester. Fetches the PR, issue, or work item content (description, comments, linked items) via the appropriate provider, scans it for a testable URL, applies the production-URL safety check, and either finds an existing structured test plan or auto-generates one. For wi entry on Azure DevOps, uses bug repro steps as the test plan seed. Outputs TEST_URL, PRODUCTION_WARNING, TEST_PLAN, and (for wi) LINKED_PR_ID for the execution phase.
 disable-model-invocation: true
 ---
 
@@ -12,8 +12,9 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 
 | Variable | Source | Description |
 |---|---|---|
-| `ENTRY_TYPE` | orchestrator | `pr` or `issue` |
-| `ENTRY_ID` | orchestrator | The PR or issue number |
+| `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
+| `ENTRY_ID` | orchestrator | The PR number, issue number, or work item ID |
+| `PLATFORM` | orchestrator | `GitHub` or `AzureDevOps` |
 
 ## Outputs
 
@@ -21,15 +22,20 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 |---|---|
 | `TEST_URL` | The URL the test plan will run against |
 | `PRODUCTION_WARNING` | `true` if the URL appears to be production; otherwise `false` |
-| `TEST_PLAN` | Either an existing plan from the PR/issue or one auto-generated from context |
+| `TEST_PLAN` | Either an existing plan from the content or one auto-generated from context |
+| `LINKED_PR_ID` | Azure DevOps only, `wi` entry: the PR linked to the work item (used for posting the report) |
 
 If a required output cannot be produced (e.g. no testable URL), this skill posts a comment and stops. Do not proceed to Phase 2.
 
+For full provider command reference, see:
+- `providers/github.md` (GitHub)
+- `providers/azure-devops.md` (Azure DevOps)
+
 ---
 
-## Step 1: Fetch PR or Issue Content
+## Step 1: Fetch Content
 
-**If `ENTRY_TYPE == pr`:**
+### GitHub — `ENTRY_TYPE == pr`
 
 ```bash
 gh pr view ${ENTRY_ID} --json number,title,body,state,headRefName,baseRefName,url,author,labels,commits,closingIssuesReferences,comments
@@ -41,7 +47,11 @@ For each linked issue number discovered:
 gh issue view ${ISSUE_NUMBER} --json number,title,body,state,labels,comments
 ```
 
-**If `ENTRY_TYPE == issue`:**
+Collect: PR title, description, all comments, commit messages, linked issue descriptions and comments.
+
+---
+
+### GitHub — `ENTRY_TYPE == issue`
 
 ```bash
 gh issue view ${ENTRY_ID} --json number,title,body,state,labels,assignees,comments,projectItems
@@ -54,19 +64,74 @@ gh api "repos/{owner}/{repo}/issues/${ENTRY_ID}/timeline" --paginate \
 gh pr list --search "${ENTRY_ID} in:body" --state all --json number,title,state,headRefName,url,body --limit 20
 ```
 
-Collect and store all of the following:
-- PR / Issue title, description (full body)
-- All comments in chronological order
-- Commit messages for all linked commits (PR only)
-- Descriptions and comments of any linked issues (e.g. `Fixes #44`)
+Collect: issue title, description, all comments, linked PR descriptions.
 
-For full provider command reference, see `providers/github.md`.
+---
+
+### Azure DevOps — `ENTRY_TYPE == pr`
+
+Parse the remote URL and set `API_BASE`, `AZURE_REPO` per `providers/azure-devops.md`.
+
+```bash
+# PR metadata
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${ENTRY_ID}?api-version=7.1"
+
+# PR threads (all comments)
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${ENTRY_ID}/threads?api-version=7.1"
+
+# Linked work items
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${ENTRY_ID}/workitems?api-version=7.1"
+```
+
+For each linked work item, fetch to extract acceptance criteria or description:
+```bash
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/wit/workitems/${WI_ID}?api-version=7.1&\$expand=all"
+```
+
+Collect: PR title, description, all thread comment contents (concatenated), linked work item descriptions and acceptance criteria.
+
+---
+
+### Azure DevOps — `ENTRY_TYPE == wi`
+
+Parse the remote URL and set `API_BASE`, `AZURE_REPO` per `providers/azure-devops.md`.
+
+```bash
+# Work item with all fields and relations
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/wit/workitems/${ENTRY_ID}?api-version=7.1&\$expand=all"
+
+# Work item comments
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/wit/workitems/${ENTRY_ID}/comments?api-version=7.1-preview.4"
+```
+
+**Auto-detect work item type** from `fields.System.WorkItemType`:
+- `Bug` → extract repro steps (`Microsoft.VSTS.TCM.ReproSteps`) and root cause (`Microsoft.VSTS.Common.RootCause`). The repro steps are the **primary test plan seed** — treat them as a structured step list if they enumerate navigable steps.
+- `Product Backlog Item`, `User Story`, `Feature` → extract acceptance criteria (`Microsoft.VSTS.Common.AcceptanceCriteria`).
+
+**Discover linked PRs** from the work item relations (see `providers/azure-devops.md`). Store the first active (non-abandoned) linked PR ID as `LINKED_PR_ID`. Fetch that PR's metadata and threads:
+
+```bash
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${LINKED_PR_ID}?api-version=7.1"
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
+  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${LINKED_PR_ID}/threads?api-version=7.1"
+```
+
+Collect: work item title, description, repro steps or acceptance criteria, all work item comments, linked PR description, all linked PR thread comments.
+
+If no linked PR is found, post the "no URL found" comment on the work item (see Step 2 below) and STOP — the plugin requires a linked PR to discover the deployment URL and post the report.
 
 ---
 
 ## Step 2: Find the Test URL
 
-Scan all collected content (description, every comment, commit messages) for a URL matching `https?://[^\s\)\"\']+`.
+Scan all collected content (description, every comment, repro steps, commit messages) for a URL matching `https?://[^\s\)\"\']+`.
 
 Prioritise URLs preceded by any of these labels (case-insensitive):
 - `Preview URL:`
@@ -78,19 +143,12 @@ Prioritise URLs preceded by any of these labels (case-insensitive):
 
 Exclude URLs that appear inside fenced code blocks (``` or `~~~`).
 
-**If no URL is found**, post the following comment and STOP immediately — do not proceed to Phase 2:
+**If no URL is found**, post the appropriate "no testable URL" comment via the correct provider and STOP — do not proceed to Phase 2:
 
-For a PR:
-```bash
-gh pr comment ${ENTRY_ID} --body "🤖 web-app-tester could not run — no testable URL was found.
-Add a comment with the URL (e.g. Preview URL: https://...) and re-trigger."
-```
-
-For an issue:
-```bash
-gh issue comment ${ENTRY_ID} --body "🤖 web-app-tester could not run — no testable URL was found.
-Add a comment with the URL (e.g. Preview URL: https://...) and re-trigger."
-```
+- GitHub PR → `providers/github.md` "No URL Found — PR" command
+- GitHub Issue → `providers/github.md` "No URL Found — Issue" command
+- Azure DevOps PR → `providers/azure-devops.md` "No URL Found — PR" command
+- Azure DevOps Work Item → `providers/azure-devops.md` "No URL Found — Work Item" command
 
 Store the found URL as `TEST_URL`.
 
@@ -98,7 +156,7 @@ Store the found URL as `TEST_URL`.
 
 ## Step 3: Production URL Safety Check
 
-If `TEST_URL` does not contain any of the following substrings: `staging`, `preview`, `dev`, `test`, `pr-`, `localhost`, `127.0.0.1`, `.local`, a PR number, or an issue number — set `PRODUCTION_WARNING=true`.
+If `TEST_URL` does not contain any of the following substrings: `staging`, `preview`, `dev`, `test`, `pr-`, `localhost`, `127.0.0.1`, `.local`, a PR number, or an issue/work item number — set `PRODUCTION_WARNING=true`.
 
 If `PRODUCTION_WARNING=true`, restrict execution to **read-only steps only**. Never submit forms, click destructive actions (delete, remove, reset), or trigger data-modifying operations.
 
@@ -107,6 +165,14 @@ The execution phase enforces this at the per-step level — see `skills/run-play
 ---
 
 ## Step 4: Find a Test Plan
+
+### Azure DevOps `wi` entry — Bug repro steps
+
+If the work item type is `Bug` and the repro steps field contains a numbered or bulleted list with at least two action verbs (Navigate, Go to, Click, Fill, Verify, Assert, Check, Submit, Open, etc.) → use repro steps directly as `TEST_PLAN` and skip to Phase 2. Do not post a comment.
+
+If repro steps exist but are not in a structured step format, use them as context for Step 4b auto-generation.
+
+### All other entry types — Scan for existing test plan
 
 Scan the full body and all comments for a structured step list meeting ALL of these criteria:
 - Numbered or bulleted list
@@ -123,30 +189,23 @@ Also accept a test plan generated by the `test-strategist` plugin (look for head
 
 ## Step 4b: Auto-Generate Test Plan
 
-Based on the PR/issue title, description, commits, and linked issue content, derive a focused test plan covering:
+Based on the title, description, commits, repro steps (Bug), acceptance criteria (PBI/Feature), and linked item content, derive a focused test plan covering:
 
-1. **Primary user-facing change** — the core behaviour described or implied by the PR/issue
-2. **Implied UI interactions** — forms, navigation flows, state changes, error states visible from description
+1. **Primary user-facing change** — the core behaviour described or implied
+2. **Implied UI interactions** — forms, navigation flows, state changes, error states
 3. **Happy-path scenario** — the expected successful user journey
 4. **Edge / negative scenario** — at least one boundary or error case
 
-Format the plan as a numbered list with action verbs. Keep steps concrete and navigable (reference page paths, button labels, form fields as described in the PR/issue).
+For **Bug work items**: the repro steps define the unhappy path — include them verbatim as step(s) and add verification steps that confirm the fix resolves them.
 
-Post this comment before executing:
+Format the plan as a numbered list with action verbs. Keep steps concrete and navigable (reference page paths, button labels, form fields as described in the content).
 
-For a PR:
-```bash
-gh pr comment ${ENTRY_ID} --body "🤖 web-app-tester — No test plan found. Auto-generated plan, executing now:
+Post this plan comment via the correct provider before executing:
 
-${AUTO_GENERATED_STEPS}"
-```
-
-For an issue:
-```bash
-gh issue comment ${ENTRY_ID} --body "🤖 web-app-tester — No test plan found. Auto-generated plan, executing now:
-
-${AUTO_GENERATED_STEPS}"
-```
+- GitHub PR → `providers/github.md` "Auto-Generated Plan — PR" command
+- GitHub Issue → `providers/github.md` "Auto-Generated Plan — Issue" command
+- Azure DevOps PR → `providers/azure-devops.md` "Auto-Generated Plan — PR" command
+- Azure DevOps Work Item → `providers/azure-devops.md` "Auto-Generated Plan — Work Item" command (posts on `LINKED_PR_ID`)
 
 Store the auto-generated plan as `TEST_PLAN`.
 
@@ -154,4 +213,4 @@ Store the auto-generated plan as `TEST_PLAN`.
 
 ## Completion
 
-When this skill finishes successfully, hand off to `skills/run-playwright-session/SKILL.md` with `TEST_URL`, `PRODUCTION_WARNING`, and `TEST_PLAN` in scope.
+When this skill finishes successfully, hand off to `skills/run-playwright-session/SKILL.md` with `TEST_URL`, `PRODUCTION_WARNING`, `TEST_PLAN`, `PLATFORM`, `ENTRY_TYPE`, `ENTRY_ID`, and (if applicable) `LINKED_PR_ID` in scope.

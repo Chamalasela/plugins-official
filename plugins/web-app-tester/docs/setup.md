@@ -1,6 +1,6 @@
 # Setup Guide
 
-The `web-app-tester` plugin has three prerequisites: Node.js, playwright-cli, and the GitHub CLI.
+The `web-app-tester` plugin has three prerequisites: Node.js, playwright-cli, and a platform CLI or token depending on whether your repository is on GitHub or Azure DevOps.
 
 ---
 
@@ -54,6 +54,8 @@ This means **playwright-cli does not need to be on PATH** — as long as Node.js
 
 ## GitHub CLI
 
+Required when your repository is hosted on GitHub (`github.com` in the remote URL).
+
 The plugin uses `gh` to read PR/issue content and post the results comment.
 
 ### Installation
@@ -86,6 +88,55 @@ export GITHUB_TOKEN=ghp_your_token_here
 
 ---
 
+## Azure DevOps
+
+Required when your repository is hosted on Azure DevOps (`dev.azure.com` or `visualstudio.com` in the remote URL).
+
+The plugin uses `curl` with a Personal Access Token (PAT) to read PR/work item content and post result comments.
+
+### Prerequisites
+
+- `curl` must be available (`curl --version`)
+- `python3` must be available — used for JSON serialisation in ADO API calls (`python3 --version`)
+
+### Creating a Personal Access Token
+
+1. In Azure DevOps, go to **User Settings → Personal access tokens**
+2. Click **New Token**
+3. Set the following scopes:
+
+| Scope | Access | Why it's needed |
+|---|---|---|
+| **Work Items** | Read & Write | Fetch bug repro steps and acceptance criteria; post notification comments |
+| **Code** | Read | Access PR metadata, threads, and linked items |
+| **Pull Requests** | Read & Write | Fetch PR content and post test execution report |
+
+4. Copy the token value — it is shown only once.
+
+### Setting the Token
+
+```bash
+export AZURE_DEVOPS_TOKEN=your_pat_here
+```
+
+Add this to your shell profile (`.bashrc`, `.zshrc`, etc.) to persist it across sessions.
+
+### Remote URL Formats
+
+The plugin auto-detects the Azure DevOps organisation, project, and repository from the git remote URL. Both URL formats are supported:
+
+| Format | Example |
+|---|---|
+| Modern | `https://dev.azure.com/{org}/{project}/_git/{repo}` |
+| Legacy | `https://{org}.visualstudio.com/{project}/_git/{repo}` |
+
+Verify your remote:
+```bash
+git remote get-url origin
+```
+
+---
+
 ## Troubleshooting
 
 **`node: command not found`**
@@ -101,4 +152,13 @@ Run `gh auth login` or export `GITHUB_TOKEN` with a valid personal access token.
 This is handled automatically — the plugin installs playwright-cli via `npm install -g` and resolves the path via `npm root -g` if the binary is not on PATH. No manual action needed. If the run still fails, verify that Node.js 20+ and npm are installed and working.
 
 **`_wat_pcli` file left in project directory**
-The plugin deletes this wrapper at the end of every run, including failed runs. If it persists, the run was interrupted before cleanup. Delete it manually: `rm _wat_pcli`.
+The plugin deletes this wrapper at the end of every run, including failed runs. If it persists, the run was interrupted before cleanup. Delete it manually: `rm _wat_pcli`
+
+**`AZURE_DEVOPS_TOKEN is not set`**
+Export the token: `export AZURE_DEVOPS_TOKEN=your_pat_here`. Create a PAT in Azure DevOps with Work Items (Read+Write), Code (Read), and Pull Requests (Read+Write) scopes.
+
+**`curl` returns 401 for Azure DevOps**
+The PAT may have expired or have insufficient scopes. Re-generate the token in Azure DevOps and re-export `AZURE_DEVOPS_TOKEN`.
+
+**`wi` entry returns "no linked PR found"**
+The work item must have at least one pull request linked via the Azure DevOps PR → Work Items relationship. Link the PR from the PR creation page or the work item's "Links" tab, then re-trigger.

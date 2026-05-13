@@ -22,21 +22,54 @@ if ! command -v playwright-cli > /dev/null 2>&1; then
     fi
 fi
 
-# Only validate gh commands beyond this point
-if ! echo "$COMMAND" | grep -qE "^gh "; then
-    exit 0
+# Detect platform from git remote
+REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
+if echo "$REMOTE_URL" | grep -q "github.com"; then
+    PLATFORM="GitHub"
+elif echo "$REMOTE_URL" | grep -qE "dev\.azure\.com|visualstudio\.com"; then
+    PLATFORM="AzureDevOps"
+else
+    PLATFORM="Unknown"
 fi
 
-# Check gh CLI is installed
-if ! command -v gh > /dev/null 2>&1; then
-    echo '{"decision": "block", "reason": "GitHub CLI (gh) is not installed or not in PATH. Install it: brew install gh (macOS), winget install GitHub.cli (Windows), or apt install gh (Linux)."}'
-    exit 0
+# --- GitHub platform checks ---
+if [ "$PLATFORM" = "GitHub" ]; then
+    # Only validate gh commands
+    if ! echo "$COMMAND" | grep -qE "^gh "; then
+        exit 0
+    fi
+
+    # Check gh CLI is installed
+    if ! command -v gh > /dev/null 2>&1; then
+        echo '{"decision": "block", "reason": "GitHub CLI (gh) is not installed or not in PATH. Install it: brew install gh (macOS), winget install GitHub.cli (Windows), or apt install gh (Linux)."}'
+        exit 0
+    fi
+
+    # Check gh is authenticated (or GITHUB_TOKEN is set)
+    if ! timeout 10s gh auth status > /dev/null 2>&1; then
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo '{"decision": "block", "reason": "gh CLI is not authenticated and GITHUB_TOKEN is not set. Run: gh auth login — or export GITHUB_TOKEN=ghp_xxx."}'
+            exit 0
+        fi
+    fi
 fi
 
-# Check gh is authenticated (or GITHUB_TOKEN is set)
-if ! timeout 10s gh auth status > /dev/null 2>&1; then
-    if [ -z "${GITHUB_TOKEN:-}" ]; then
-        echo '{"decision": "block", "reason": "gh CLI is not authenticated and GITHUB_TOKEN is not set. Run: gh auth login — or export GITHUB_TOKEN=ghp_xxx."}'
+# --- Azure DevOps platform checks ---
+if [ "$PLATFORM" = "AzureDevOps" ]; then
+    # Only validate curl commands targeting Azure DevOps
+    if ! echo "$COMMAND" | grep -qE "^curl "; then
+        exit 0
+    fi
+
+    # Check curl is available
+    if ! command -v curl > /dev/null 2>&1; then
+        echo '{"decision": "block", "reason": "curl is not installed or not in PATH. curl is required for Azure DevOps API calls. Install it via your package manager."}'
+        exit 0
+    fi
+
+    # Check AZURE_DEVOPS_TOKEN is set
+    if [ -z "${AZURE_DEVOPS_TOKEN:-}" ]; then
+        echo '{"decision": "block", "reason": "AZURE_DEVOPS_TOKEN is not set. Create a Personal Access Token in Azure DevOps (Work Items: Read+Write, Code: Read, Pull Requests: Read+Write) and export AZURE_DEVOPS_TOKEN=your_pat — see docs/setup.md"}'
         exit 0
     fi
 fi
