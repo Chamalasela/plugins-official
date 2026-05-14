@@ -165,20 +165,6 @@ Screenshot: captured at point of failure
 
 ---
 
-## Performance
-
-| Phase | First run | Subsequent runs | Xianix executor (pre-installed) |
-|---|---|---|---|
-| `playwright-cli` install (if missing) | ~5–10s | 0s (already installed) | 0s always |
-| Browser install | ~30–60s | 0s (cached) | 0s always |
-| Test execution (9 steps, adaptive `playwright-cli` loop) | ~25–35s | ~25–35s | ~25–35s |
-| **Total** | **~60–105s** | **~25–35s** | **~25–35s** |
-
-Browser caching is automatic — the plugin checks for a cached Chromium before attempting any install.
-
-For the **Xianix platform**: request that `playwright` and Chromium be pre-installed in `99xio/xianix-executor:latest` to eliminate the first-run install cost entirely.
-
----
 
 ## Prerequisites
 
