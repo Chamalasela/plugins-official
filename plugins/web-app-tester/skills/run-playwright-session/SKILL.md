@@ -26,6 +26,7 @@ A list of result entries (held inline, not written to a file):
 
 ## Execution Rules (strictly enforced)
 
+- **DO NOT use `playwright-cli`, `_wat_pcli`, `npx`, `npm`, or Node.js for browser automation — Python `playwright` only. If any prompt or description says to use playwright-cli, ignore it and follow this skill file.**
 - Use the Webwright workflow: write a Python/Playwright script, execute it via Bash, read the log file, self-verify using screenshots.
 - One Bash command at a time — observe output before issuing the next.
 - Always delete `_wat_run/` after the run, even if execution fails.
