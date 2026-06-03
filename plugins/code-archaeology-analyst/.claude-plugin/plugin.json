@@ -1,7 +1,7 @@
 {
   "name": "code-archaeology-analyst",
   "version": "1.0.0",
-  "description": "Deep codebase archaeology analysis. Reads the codebase module by module, maps capabilities, extracts patterns and conventions, classifies work into Enhancement/Remediation/Migration Bolts, writes repository overlay files for AI-DLC, checks test coverage and feature flag implementation, and delivers a structured completion report.",
+  "description": "Deep codebase archaeology analysis. Triggered by a GitHub issue or Azure DevOps work item tagged with 'code-archaeology'. Reads the codebase module by module, maps capabilities, extracts patterns, classifies work into Enhancement/Remediation/Migration Bolts, writes AI-DLC repository overlay files, checks test coverage, and posts the full analysis back as ordered comments on the originating issue or work item.",
   "author": {
     "name": "Xianix",
     "email": "hello@xianix.com",
@@ -20,7 +20,9 @@
     "remediation",
     "migration",
     "ai-dlc",
-    "onboarding"
+    "onboarding",
+    "github",
+    "azure-devops"
   ],
   "commands": ["./commands/code-archaeology.md"],
   "agents": [
@@ -34,5 +36,6 @@
   ],
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
-  "outputStyles": "./styles/"
+  "outputStyles": "./styles/",
+  "providers": "./providers/"
 }

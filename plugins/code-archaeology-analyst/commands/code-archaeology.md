@@ -1,90 +1,115 @@
 ---
 name: code-archaeology
-description: Deep codebase archaeology analysis. Reads the codebase module by module, maps capabilities, extracts patterns and conventions, classifies work into Enhancement/Remediation/Migration Bolts, writes AI-DLC repository overlay files, checks test coverage and feature flag implementation, and delivers a completion report at ai-dlc/code-archaeology-analysis.md. Usage: /code-archaeology [path] [--no-overlay] [--no-coverage]
-argument-hint: [path] [--no-overlay] [--no-coverage]
+description: Deep codebase archaeology analysis triggered by a GitHub issue or Azure DevOps work item tagged 'code-archaeology'. Fetches the issue, scans the codebase module by module, extracts patterns, classifies work into Enhancement/Remediation/Migration Bolts, writes AI-DLC overlay files, and posts the full analysis back as ordered comments on the originating issue or work item. Usage: /code-archaeology [issue <n> | wi <id>] [--no-overlay] [--no-coverage]
+argument-hint: [issue <n> | wi <id>] [--no-overlay] [--no-coverage]
 ---
 
 Run a full codebase archaeology analysis for $ARGUMENTS.
 
 ## What This Does
 
-Invokes the **orchestrator** agent to perform systematic codebase archaeology — scanning every module, extracting patterns and conventions, classifying all identified work, writing AI-DLC overlay files, and delivering a structured completion report.
+Invokes the **orchestrator** agent. It detects the hosting platform, fetches the issue or work item that triggered the request, posts an "Analysis in Progress" comment immediately, runs the full four-phase analysis pipeline, and delivers the results as ordered comments on the originating issue — plus writing AI-DLC overlay files to the repository.
+
+## Triggering the Analysis
+
+Create a GitHub Issue (or Azure DevOps Work Item) with the `code-archaeology` label/tag. The issue body may optionally specify:
+
+```markdown
+**Target path:** src/payments          (optional — defaults to repo root)
+**Modules of interest:** src/auth, src/users   (optional — defaults to all)
+
+Any additional context or notes about what to focus on.
+```
+
+Then run:
+
+```
+/code-archaeology issue 42
+/code-archaeology wi 1023
+```
 
 ## Pipeline
 
 ```
-/code-archaeology
+/code-archaeology issue 42
     └── orchestrator
           │
-          ├── Step 1: Initial codebase survey (structure, languages, frameworks)
+          ├── Step 0: Detect platform (GitHub / Azure DevOps / Generic)
+          ├── Step 1: Fetch issue #42 — parse target path and context
+          ├── Step 2: Post "Analysis in Progress" comment
+          ├── Step 3: Initial codebase survey (structure, languages, frameworks)
           │
           ├── Phase 1 (parallel):
-          │     ├── module-scanner     — module list, business descriptions, capability map
-          │     └── pattern-extractor  — conventions, service boundaries, data flows
+          │     ├── module-scanner     — modules, descriptions, capability map
+          │     └── pattern-extractor  — conventions, patterns, data flows
           │
           ├── Phase 2:
           │     └── work-classifier    — Enhancement / Remediation / Migration Bolts
-          │                              ⏸ PAUSE: presents classification to engineer
           │
-          ├── Phase 3 (parallel, after confirmation):
-          │     ├── overlay-writer     — writes ai-dlc/ rule and guideline files
+          ├── Post comments 1–3: Module Map | Patterns | Work Classification
+          │
+          ├── Phase 3 (parallel):
+          │     ├── overlay-writer     — writes ai-dlc/ overlay files
           │     └── coverage-analyst   — test coverage + feature flag check
           │
-          └── Phase 4:
-                └── report-writer  →  ai-dlc/code-archaeology-analysis.md
+          ├── Phase 4:
+          │     └── report-writer  →  ai-dlc/code-archaeology-analysis.md
+          │
+          └── Post comments 4–5: Blast Radius Controls | Analysis Complete
+                + Apply 'archaeology-complete' label
 ```
 
 ## Entry Points
 
-| Argument | Example | What it does |
+| Argument | Example | What the agent resolves |
 |---|---|---|
-| **No argument** | `/code-archaeology` | Analyzes current working directory |
-| **Path** | `/code-archaeology src/` | Analyzes the specified path |
-| `--no-overlay` | `/code-archaeology --no-overlay` | Skips writing ai-dlc/ overlay files |
-| `--no-coverage` | `/code-archaeology --no-coverage` | Skips test coverage and feature flag analysis |
+| `issue <n>` | `/code-archaeology issue 42` | GitHub issue #42 — reads body for target path and context |
+| `wi <id>` | `/code-archaeology wi 1023` | Azure DevOps work item — reads description for target path and context |
 
-## Agents
+## Flags
 
-**Phase 1 (parallel):**
-
-| Agent | Focus |
+| Flag | Effect |
 |---|---|
-| `module-scanner` | Reads every module, writes business-language descriptions, produces capability map and service boundaries |
-| `pattern-extractor` | Identifies service boundaries, integration points, data flows; extracts naming conventions, error handling, ORM usage, API shapes, auth patterns, and test patterns from 10–20 representative files |
+| `--no-overlay` | Skip writing `ai-dlc/` overlay files |
+| `--no-coverage` | Skip test coverage and feature flag analysis |
 
-**Phase 2:**
+## Comment Thread Posted
 
-| Agent | Focus |
-|---|---|
-| `work-classifier` | Classifies all identified work into Enhancement / Remediation / Migration Bolts using Phase 1 analysis; presents the classification to the engineer for confirmation before the pipeline continues |
-
-**Phase 3 (parallel, after engineer confirmation):**
-
-| Agent | Focus | Skip when |
+| # | Comment heading | Source |
 |---|---|---|
-| `overlay-writer` | Writes rule file, forbidden-zones.md, entry-points.md, and code-standards.md under ai-dlc/ | `--no-overlay` |
-| `coverage-analyst` | Reports test coverage for the first entry-point module; checks feature flag implementation | `--no-coverage` |
+| 1 | `Analysis in Progress` | Orchestrator (immediate) |
+| 2 | `🗺️ Module Map & Capability Map` | module-scanner |
+| 3 | `🔍 Code Patterns & Conventions` | pattern-extractor |
+| 4 | `📋 Work Classification` | work-classifier |
+| 5 | `🛡️ Blast Radius Controls` | coverage-analyst (skipped with `--no-coverage`) |
+| 6 | `✅ Analysis Complete` | Orchestrator (summary + next steps) |
 
-**Phase 4:**
+Comments with no meaningful findings are skipped.
 
-| Agent | Focus |
-|---|---|
-| `report-writer` | Produces the full completion report at `ai-dlc/code-archaeology-analysis.md` |
+## Platform Support
 
-## Output Files
+| Remote URL | Platform | Delivery |
+|---|---|---|
+| `github.com` | GitHub | Ordered comments via `gh` CLI + `archaeology-complete` label |
+| `dev.azure.com` / `visualstudio.com` | Azure DevOps | Ordered comments via REST API + `archaeology-complete` tag |
+| Anything else | Generic | Report written to `ai-dlc/code-archaeology-analysis.md` only |
+
+## Output Files (always written to disk)
 
 | File | Description |
 |---|---|
-| `ai-dlc/code-archaeology-analysis.md` | Main completion report |
-| `ai-dlc/rules/codebase-rules.md` | Rules for AI assistants working with this codebase |
+| `ai-dlc/code-archaeology-analysis.md` | Full 8-section completion report |
+| `ai-dlc/rules/codebase-rules.md` | Directive rules for AI assistants |
 | `ai-dlc/guidelines/forbidden-zones.md` | Areas requiring human pilot intervention |
-| `ai-dlc/guidelines/entry-points.md` | Areas safe to proceed autonomously |
-| `ai-dlc/rules/code-standards.md` | Extracted code standards and conventions |
+| `ai-dlc/guidelines/entry-points.md` | Areas safe for autonomous AI work |
+| `ai-dlc/rules/code-standards.md` | Extracted code standards with examples |
 
 ## Prerequisites
 
 - Must be run inside a git repository
-- Read access to all source files in the target path
+- **GitHub:** `gh` CLI installed and authenticated (`gh auth login`)
+- **Azure DevOps:** `AZURE-DEVOPS-TOKEN` environment variable set
+- **Plain text / unknown platform:** nothing — report written to disk only
 
 ---
 
