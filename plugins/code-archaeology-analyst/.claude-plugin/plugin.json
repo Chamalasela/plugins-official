@@ -1,0 +1,38 @@
+{
+  "name": "code-archaeology-analyst",
+  "version": "1.0.0",
+  "description": "Deep codebase archaeology analysis. Reads the codebase module by module, maps capabilities, extracts patterns and conventions, classifies work into Enhancement/Remediation/Migration Bolts, writes repository overlay files for AI-DLC, checks test coverage and feature flag implementation, and delivers a structured completion report.",
+  "author": {
+    "name": "Xianix",
+    "email": "hello@xianix.com",
+    "url": "https://xianix.com"
+  },
+  "homepage": "https://xianix.com",
+  "repository": "https://github.com/xianix-team/plugins-official",
+  "license": "MIT",
+  "keywords": [
+    "code-archaeology",
+    "codebase-analysis",
+    "module-mapping",
+    "capability-map",
+    "pattern-extraction",
+    "enhancement",
+    "remediation",
+    "migration",
+    "ai-dlc",
+    "onboarding"
+  ],
+  "commands": ["./commands/code-archaeology.md"],
+  "agents": [
+    "./agents/orchestrator.md",
+    "./agents/module-scanner.md",
+    "./agents/pattern-extractor.md",
+    "./agents/work-classifier.md",
+    "./agents/overlay-writer.md",
+    "./agents/coverage-analyst.md",
+    "./agents/report-writer.md"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "outputStyles": "./styles/"
+}
