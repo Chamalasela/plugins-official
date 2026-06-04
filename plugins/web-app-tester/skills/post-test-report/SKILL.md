@@ -49,7 +49,7 @@ Build the comment body using the **exact** structure defined in `styles/report-t
 The skeleton is:
 
 ```
-🤖 web-app-tester — Test Execution Report
+🤖 web-app-tester (Webwright) — Test Execution Report
 URL tested: {TEST_URL}
 {PRODUCTION_WARNING ? "⚠️ URL appears to be production. Executed read-only steps only." : ""}
 Total: N | ✅ Passed: X | ❌ Failed: Y | 🔴 Blocked: Z
