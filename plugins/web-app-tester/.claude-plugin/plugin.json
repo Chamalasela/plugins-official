@@ -1,7 +1,7 @@
 {
   "name": "web-app-tester",
-  "version": "1.0.0",
-  "description": "Automated web app behaviour verification triggered from a GitHub PR or Issue. Finds a testable URL from comments, runs or auto-generates a test plan using Playwright CLI (headless Chromium), and posts a structured test execution report as a GitHub comment.",
+  "version": "1.0.1",
+  "description": "Automated web app behaviour verification triggered from a GitHub PR or Issue. Finds a testable URL from comments, runs or auto-generates a test plan using the Webwright workflow (Python/Playwright, headless Chromium), and posts a structured test execution report as a GitHub comment.",
   "author": {
     "name": "Xianix",
     "email": "hello@xianix.com",
@@ -21,7 +21,7 @@
     "github",
     "test-automation"
   ],
-  "commands": ["./commands/test-web-app.md"],
+  "commands": ["./commands/test-web-app.md", "./commands/web-app-test.md"],
   "agents": [
     "./agents/orchestrator.md"
   ],
