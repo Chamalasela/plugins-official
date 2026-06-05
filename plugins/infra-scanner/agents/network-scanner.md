@@ -107,12 +107,10 @@ if echo "$TARGET_URL" | grep -q "^https://"; then
     | openssl x509 -noout -dates -subject -issuer 2>/dev/null)
   echo "$CERT_INFO"
 
-  # Check expiry
   EXPIRY=$(echo | openssl s_client -connect "${HOSTNAME}:443" -servername "$HOSTNAME" 2>/dev/null \
     | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
   echo "Certificate expiry: $EXPIRY"
 
-  # Check if expired or expiring within 30 days
   if command -v python3 > /dev/null 2>&1; then
     python3 -c "
 from datetime import datetime, timezone
@@ -140,7 +138,7 @@ fi
 **Findings:**
 - Certificate expired → `[CRITICAL]`
 - Certificate expiring within 30 days → `[HIGH]`
-- Target is HTTP-only → `[HIGH]` (duplicate of web-tester A02 — mark as `INFO` in network to avoid double-counting)
+- Target is HTTP-only → `[HIGH]`
 - Self-signed or unknown issuer → `[MEDIUM]`
 
 ---

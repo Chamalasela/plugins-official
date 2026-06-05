@@ -70,16 +70,11 @@ fi
 ```bash
 find "$REPO" -name "Dockerfile*" -not -path "*/node_modules/*" -not -path "*/.git/*" | while read df; do
   echo "=== Manual checks: $df ==="
-  # Root user
   grep -n "^USER " "$df" > /dev/null || echo "NO_USER_DIRECTIVE: $df"
-  # Latest tag
   grep -n "^FROM.*:latest" "$df" && echo "LATEST_TAG: $df" || true
-  # ADD instead of COPY (can extract archives from URLs)
   grep -n "^ADD http" "$df" && echo "ADD_URL: $df" || true
-  # Secrets in ENV
   grep -inE "^ENV.*(password|secret|token|api_key|private_key)\s*=" "$df" \
     && echo "SECRET_IN_ENV: $df" || true
-  # curl/wget piped to bash
   grep -n "curl.*|.*bash\|wget.*|.*bash\|curl.*|.*sh\b\|wget.*|.*sh\b" "$df" \
     && echo "CURL_PIPE_BASH: $df" || true
 done
@@ -106,7 +101,6 @@ elif command -v checkov > /dev/null 2>&1; then
   checkov -d "$REPO" --framework terraform --output json 2>/dev/null \
     | tee "$IAC_EVIDENCE/checkov-tf.json" | head -300
 else
-  # Manual: check for public S3 buckets, unencrypted resources, open security groups
   find "$REPO" -name "*.tf" | while read tf; do
     grep -n "0\.0\.0\.0/0" "$tf" && echo "OPEN_INGRESS: $tf" || true
     grep -n "publicly_accessible\s*=\s*true" "$tf" && echo "PUBLICLY_ACCESSIBLE: $tf" || true
@@ -135,7 +129,6 @@ if command -v kubesec > /dev/null 2>&1; then
     kubesec scan "$manifest" 2>/dev/null | tee "$IAC_EVIDENCE/kubesec-$(basename "$manifest").json" | head -100
   done
 else
-  # Manual k8s checks
   find "$REPO" \( -name "*.yaml" -o -name "*.yml" \) \
     \( -path "*/k8s/*" -o -path "*/kubernetes/*" -o -path "*/manifests/*" \) \
     -not -path "*/.git/*" | while read manifest; do
@@ -164,19 +157,16 @@ Scan `.github/workflows/*.yml` for common supply-chain attack vectors.
 find "$REPO/.github/workflows" -name "*.yml" -o -name "*.yaml" 2>/dev/null | while read wf; do
   echo "=== GitHub Actions: $wf ==="
 
-  # pull_request_target with checkout of PR head — classic supply chain attack vector
   if grep -q "pull_request_target" "$wf"; then
     grep -n "pull_request_target" "$wf"
     grep -n "ref.*head\|head_ref\|github.event.pull_request.head" "$wf" \
       && echo "GHA_PPT_CHECKOUT: $wf — pull_request_target with PR head checkout" || true
   fi
 
-  # Untrusted input in run: blocks
   grep -n 'run:' "$wf" | head -5
   grep -nE '\$\{\{.*github\.event\.(issue\.title|issue\.body|pull_request\.title|pull_request\.body|comment\.body|head\.ref|head\.label)\}\}' "$wf" \
     && echo "GHA_UNTRUSTED_INPUT: $wf — untrusted event data used in run step" || true
 
-  # Pinned vs unpinned actions
   grep -n "uses:" "$wf" | grep -v "@" && echo "GHA_UNPINNED_ACTION: $wf — action not pinned to commit SHA" || true
   grep -n "uses:" "$wf" | grep "@main\|@master" && echo "GHA_MUTABLE_TAG: $wf — action pinned to mutable branch" || true
 done
