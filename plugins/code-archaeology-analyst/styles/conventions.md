@@ -1,119 +1,71 @@
 # Output Style: Code Archaeology Analysis
 
-This style guide defines the conventions used when generating the code archaeology completion report and AI-DLC overlay files. It applies to the `report-writer` and `overlay-writer` agents.
+This style guide defines the conventions used when generating the archaeology report. It applies to the `report-writer` agent and to the comment bodies posted by the orchestrator.
 
 ---
 
 ## Audience
 
-The primary readers are:
-- **AI assistants** working with the codebase — need directive rules they can follow precisely
-- **Onboarding engineers** — need business-language descriptions and clear conventions
-- **Technical leads** — need the work classification and prioritization to be actionable
+- **Developers reading comments** on the issue — need scannable summaries they can action in minutes
+- **AI assistants** consuming the report — need directive rules and unambiguous verdicts
+- **Technical leads** reviewing the backlog — need priorities justified by evidence
 
 ---
 
-## Tone and Language
+## Language Rules
 
-- **Module descriptions:** Always business language. Describe what the user or business gets, not what the code does internally. "Authenticates users via email and password" not "Validates JwtService.verify() return value".
-- **Conventions and rules:** Always directive. "Always use X", "Never do Y", "When Z, follow this pattern". No passive voice.
-- **Work items:** Plain language. "Add email notification when a user completes onboarding" not "Implement `EmailService.sendOnboardingComplete()` method".
-- **Warnings:** Prominent. REQUIRED MANUAL CHECK notices must be in blockquotes and cannot be buried in lists.
+**Module descriptions** — always business language. Describe what the user or business gets, never what the code does internally.
+- "Authenticates users and issues session tokens" not "Validates JwtService.verify() and sets req.user"
 
----
+**Findings** — specific and locatable. Every finding must include a file path or function name.
+- "Missing auth check on `POST /api/v1/users` in `src/api/users.ts:43`" not "some endpoints lack auth"
 
-## Bolt Classification Language
+**Work items** — specific enough to act on without further clarification.
+- "Add input validation middleware to all public API routes in `src/api/`" not "improve input validation"
 
-Use precise language to distinguish bolt types:
-
-| Type | Trigger words | Example |
-|---|---|---|
-| Enhancement | "Add", "Extend", "Support", "Introduce", "Enable" | "Add OAuth 2.0 login via Google" |
-| Remediation | "Fix", "Remove", "Add tests for", "Standardize", "Secure", "Resolve" | "Fix missing error handling in payment module" |
-| Migration | "Migrate", "Replace", "Upgrade", "Refactor", "Move", "Convert" | "Migrate from Mongoose callbacks to async/await" |
-
----
-
-## Risk Language
-
-| Level | CSS / Badge | When to apply |
-|---|---|---|
-| 🔴 High | Critical | Auth, security, data loss, public API breaking changes, financial logic |
-| 🟡 Medium | Medium | Core business logic, cross-module integrations, data transformations |
-| 🟢 Low | Low | Utilities, configuration, tests, documentation, isolated new features |
+**Verdict language** — use exactly these terms, no variations:
+- `Consistent` / `Inconsistent` / `Split` / `Not observed` (pattern verdicts)
+- `Confirmed` (cross-segment consolidation of a Consistent pattern)
+- `Critical` / `High` / `Medium` / `Low` (finding severity)
+- `Fix-in-place` / `Quarantine` / `Encode as prohibition` (recommendations)
+- `P1` through `P5` (work item priority)
+- `Enhancement` / `Remediation` / `Migration` (work item type)
 
 ---
 
-## Complexity Language
+## Comment Structure
 
-| Level | Definition | Examples |
-|---|---|---|
-| Low | < 1 day of focused work | Fix a TODO, add a test, update a config value |
-| Medium | 1–3 days | Add a new API endpoint, refactor a service method, add integration test suite |
-| High | > 3 days | Full module refactor, library migration, multi-service integration |
+Each posted comment must have a clear H2 heading and be scannable in under 60 seconds.
 
----
+**Skip sections with no findings** — never write "None identified" or "No issues found."
 
-## Overlay File Language
-
-### forbidden-zones.md
-- Lead with the zone name as an H2 header
-- State the restriction level clearly: "Full stop" (no AI code generation) or "Review required" (AI may draft, human must approve)
-- Restriction descriptions must be specific operations, not just areas: "Never modify the JWT signature verification logic" not "Don't touch auth"
-- Always include what IS allowed — reading, analyzing, and adding tests are usually safe even in forbidden zones
-
-### entry-points.md
-- Lead with the entry point name as an H2 header
-- "Safe for" list must be concrete operations, not vague permissions
-- Always include "Not safe for (even here)" to prevent scope creep
-- Prerequisites must be testable conditions: "All existing tests pass" not "tests are OK"
-
-### codebase-rules.md
-- Every rule must start with "Always" or "Never" — no ambiguity
-- Every rule must be followed immediately by an example
-- Group rules by domain: Naming, Error Handling, ORM, API, Auth, Tests
-
-### code-standards.md
-- Lead each standard with "Rule:" on its own line
-- Follow immediately with "Example:" and a code block
-- Where an anti-pattern is common, include "Anti-example:" as well
+**Decision Log entries** — always include the phase prefix: `Phase 1 —`, `Phase 2 —`, etc.
 
 ---
 
-## Completeness Requirements
+## Severity Justification
 
-The `report-writer` must ensure:
-1. Every module has a description — no module appears only in the table without a description section
-2. Every Bolt has an evidence citation
-3. Every REQUIRED MANUAL CHECK appears in the Executive Summary **and** in Section 6
-4. Section 8 (Recommended Next Steps) always contains at least one actionable item
-5. The Suggested AI-DLC Work Order must be a numbered list — never unordered
+Every Critical and High finding must include:
+1. The exact file and function where the problem exists
+2. What a developer would experience if new code inherits this pattern
+3. A concrete recommendation (Fix-in-place / Quarantine / Encode as prohibition)
 
 ---
 
-## Report Filename
+## Split Pattern Handling
 
-The report is always written to:
+A Split pattern means **no rule can be written without a human decision**. Never recommend one variant over the other — state both objectively and specify what decision is needed:
+
+> "Error handling is Split: thrown exceptions (`throw new Error(...)`) in `src/api/`, returned error objects (`{ ok: false, error }`) in `src/services/`. Decision needed: which style to standardize on before AI-assisted development begins."
+
+---
+
+## Report File
+
+Always written to:
 
 ```
-ai-dlc/code-archaeology-analysis.md
+ai-dlc/reports/code-archaeology-analysis.md
 ```
 
-The overlay files are always written to:
-
-```
-ai-dlc/rules/codebase-rules.md
-ai-dlc/guidelines/forbidden-zones.md
-ai-dlc/guidelines/entry-points.md
-ai-dlc/rules/code-standards.md
-```
-
----
-
-## General Rules
-
-1. Never invent capabilities or patterns — only document what is found in the codebase
-2. Never hide inconsistencies — flag them explicitly in the Inconsistencies table
-3. Never classify a module as an entry point if it has no tests — always require tests first
-4. Every work item must be traceable to an observation in the Phase 1 analysis
-5. REQUIRED MANUAL CHECKs are non-negotiable — they cannot be resolved by the agent
+Platform comments contain summaries. The file contains the complete report.

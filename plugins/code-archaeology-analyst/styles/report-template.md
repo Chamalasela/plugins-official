@@ -1,238 +1,198 @@
-# Completion Report Template
+# Codebase Archaeology Report Template
 
-This template defines the 8-section structure for the Markdown completion report produced by the `report-writer` agent. Write to `ai-dlc/code-archaeology-analysis.md`.
-
----
-
-## Report Sections Overview
-
-| # | Section | Source Agent | Notes |
-|---|---|---|---|
-| 1 | **Executive Summary** | orchestrator | Date, languages, module count, Bolt summary, AI-DLC readiness |
-| 2 | **Module Map & Capability Map** | module-scanner | Full module list, business descriptions, capability table |
-| 3 | **Service Boundaries & Integration Points** | module-scanner | Hard/soft boundaries, cross-cutting concerns, external integrations |
-| 4 | **Code Patterns & Conventions** | pattern-extractor | Naming, error handling, ORM, API shapes, auth, tests, data flows |
-| 5 | **Work Classification** | work-classifier | Enhancement / Remediation / Migration Bolts — confirmed by engineer |
-| 6 | **Blast Radius Controls** | coverage-analyst | Test coverage baseline, feature flag status, safety net assessment |
-| 7 | **Repository Overlay Files** | overlay-writer | Files written (or skip reason) |
-| 8 | **Recommended Next Steps** | report-writer | Immediate actions, quick wins, AI-DLC work order |
+This template defines the exact structure of the report produced by the `report-writer` agent. Follow it exactly. Write to `ai-dlc/reports/code-archaeology-analysis.md`.
 
 ---
-
-## Markdown Structure
 
 ```markdown
-# Code Archaeology Analysis
-> **Generated:** [ISO 8601 date]
-> **Target:** `[path]`
-> **Plugin:** Code Archaeology Analyst v1.0.0
+# Codebase Archaeology Report
+
+**Date:** YYYY-MM-DD
+**Repository:** [name / path]
+**Agent:** Code Archaeology Analyst v2.0.0
+**Segments analyzed:** [N]
+**Overall confidence:** High / Medium / Low
 
 ---
 
-## 1. Executive Summary
+## Segment Map
 
-| Field | Value |
-|---|---|
-| **Analysis Date** | [date] |
-| **Target Path** | `[path]` |
-| **Languages** | [comma-separated list] |
-| **Frameworks** | [comma-separated list] |
-| **Modules Found** | [N] ([N] application, [N] api, [N] data, [N] ui, [N] tests, etc.) |
-| **Enhancement Bolts** | [N] |
-| **Remediation Bolts** | [N] |
-| **Migration Bolts** | [N] |
-| **First Entry Point** | `[module path]` |
-| **Test Coverage** | [N% / Cannot determine — manual check required] |
-| **Feature Flags** | [Present ([system name]) / Not present] |
-| **Overlay Files** | [Written / Skipped] |
-
-[3–5 sentence narrative: what this codebase does, its current state (clean / has debt / in migration), and a clear statement of AI-DLC readiness]
+| Segment | Scope | File count | Confidence | Notes |
+|---|---|---|---|---|
+| [name] | `path/to/folder/` | [N] | High / Medium / Low | [boundary notes if non-obvious] |
 
 ---
 
-## 2. Module Map & Capability Map
-
-### All Modules
-
-| # | Module | Path | Type | Status |
-|---|--------|------|------|--------|
-| 1 | [name] | `path/to/module` | [type] | ✅ Analyzed / ⚠️ Partial / ❌ Skipped |
-
-### Module Descriptions
-
-#### [Module Name]
-**Path:** `path/to/module`
-**Type:** [type]
-**Description:** [business-language description — 2–4 sentences]
-**Key Capabilities:**
-- [capability]
-- [capability]
-**Consumers:** [who uses this module]
-
-[...repeat for all modules...]
+## Architecture Summary
 
 ### Capability Map
 
-| Capability | Module | Layer | User-Facing? | Critical Path? |
-|---|---|---|---|---|
-| [Business capability] | [module] | [layer] | Yes / No | Yes / No |
+[What the system does as a whole — one paragraph in business language. No implementation detail.]
 
----
+### Module Descriptions
 
-## 3. Service Boundaries & Integration Points
+[One entry per module, in exactly this format:]
 
-### Hard Boundaries (Separate Deployable Units)
-| Unit | Path | Description |
-|---|---|---|
-| [name] | `path` | [description] |
+```
+Module: [name]
+Purpose: [what it does in business terms — one paragraph maximum]
+Owns: [what data or state it is authoritative for]
+Calls: [what other modules or external services it depends on]
+Exposes: [what it provides to other modules or external callers]
+```
 
-### Soft Boundaries (Internal Domain Separation)
-| Domain | Modules | Description |
-|---|---|---|
-| [domain] | `module-a`, `module-b` | [what this domain groups] |
+### Service Boundaries
 
-### Cross-Cutting Concerns
-| Concern | Modules | Notes |
-|---|---|---|
-| [Logging / Auth / Caching / Error Handling] | [list] | [implementation notes] |
+- [Boundary rule — e.g. "Module A must not call Module C directly — all calls go through Module B"]
+- [Boundary violation found in current code — if any]
 
-### External Integrations
-| External System | Module | Purpose | Protocol |
-|---|---|---|---|
-| [system] | `module` | [purpose] | [REST / SDK / DB / queue] |
+### Integration Points
 
----
-
-## 4. Code Patterns & Conventions
-
-### Naming Conventions
-| Category | Convention | Example | Exceptions |
-|---|---|---|---|
-| Files | [convention] | [example] | [exceptions] |
-| Functions | [convention] | [example] | — |
-| Classes / Types | [convention] | [example] | — |
-| Constants | [convention] | [example] | — |
-| Test files | [convention] | [example] | — |
-| Directories | [convention] | [example] | — |
-| API routes | [convention] | [example] | — |
-
-### Error Handling
-[Summary from pattern-extractor]
-
-### ORM / Database Usage
-[Summary from pattern-extractor]
-
-### API Shapes
-[Summary from pattern-extractor]
-
-### Auth Patterns
-[Summary from pattern-extractor]
-
-### Test Patterns
-[Summary from pattern-extractor]
+- [External system or cross-segment connection — what and how]
 
 ### Data Flows
-#### Entry Points
-[table]
-#### Transformation Points
-[table]
-#### Persistence Points
-[table]
-#### Exit Points
-[table]
 
-### Inconsistencies Found
-| Area | Inconsistency | Modules | Recommendation |
+- **[Entry point]:** [trigger] → [transform] → [persist] → [exit]
+
+### Cross-Segment Dependencies
+
+[Modules or data flows that span segment boundaries. Flag tight coupling or hidden dependencies.]
+
+---
+
+## Coding Conventions
+
+[Consolidated across all segments. Where all segments agreed: Confirmed. Where they differed: Inconsistency or Split.]
+
+| Pattern type | Convention | Status | Example |
 |---|---|---|---|
-[rows, or "None identified"]
+| Naming | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| Error handling | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| ORM / DB access | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| API response shape | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| Authentication | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| Testing | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| Dependency wiring | [description] | Confirmed / Inconsistency / Split | `file:line` |
+| Configuration | [description] | Confirmed / Inconsistency / Split | `file:line` |
+
+### Conventions That Cannot Be Encoded Without a Human Decision
+
+[Every Split pattern from all segments. For each, state both variants and which modules use each. A human must decide which to standardize on before coding rules are written.]
+
+| Pattern type | Variant A | Used in | Variant B | Used in |
+|---|---|---|---|---|
+| [type] | [convention A] | [modules] | [convention B] | [modules] |
 
 ---
 
-## 5. Work Classification
+## Due Diligence Findings
 
-> ✅ All work items reviewed and confirmed by the engineer on [date].
+### Critical
 
-### Enhancement Bolts ([N])
-| ID | Name | Module | Description | Complexity | Risk | Blocked By |
-|----|------|--------|-------------|------------|------|------------|
-| E1 | [title] | `module` | [description] | [Low/Med/High] | 🔴/🟡/🟢 | — |
+| # | Location | Category | Description | Impact if inherited | Recommendation |
+|---|---|---|---|---|---|
+| C1 | `file:function` | [category] | [specific description] | [what new code copying this would cause] | Fix-in-place / Quarantine / Encode as prohibition |
 
-### Remediation Bolts ([N])
-| ID | Name | Module | Description | Complexity | Risk | Evidence |
-|----|------|--------|-------------|------------|------|----------|
-| R1 | [title] | `module` | [description] | [Low/Med/High] | 🔴/🟡/🟢 | [evidence] |
+### High
 
-### Migration Bolts ([N])
-| ID | Name | Module | Description | Complexity | Risk | Blocked By |
-|----|------|--------|-------------|------------|------|------------|
-| M1 | [title] | `module` | [description] | [Low/Med/High] | 🔴/🟡/🟢 | — |
+| # | Location | Category | Description | Impact if inherited | Recommendation |
+|---|---|---|---|---|---|
 
----
+### Medium
 
-## 6. Blast Radius Controls
+| # | Location | Category | Description | Impact if inherited | Recommendation |
+|---|---|---|---|---|---|
 
-### First Entry-Point Module
-- **Module:** [name] — `path`
-- **Associated Bolt:** [ID]
-- **Rationale:** [why selected]
+### Low
 
-### Test Coverage
-[Coverage result from coverage-analyst — pass/fail counts, coverage %, or REQUIRED MANUAL CHECK notice]
+| # | Location | Category | Description | Impact if inherited | Recommendation |
+|---|---|---|---|---|---|
 
-### Feature Flag Assessment
-[Feature flag result from coverage-analyst]
+### Findings That Cannot Be Classified Without a Human Decision
 
-### Safety Net: [Strong / Moderate / Weak]
-[Recommendation from coverage-analyst]
-
-### Prerequisite Bolts
-[List of Bolts that must be addressed before AI-DLC work starts, or "None — safe to begin"]
+| # | Location | What was observed | Decision needed |
+|---|---|---|---|
 
 ---
 
-## 7. Repository Overlay Files
+## Work Backlog
 
-| File | Status | Description |
+| # | Work item | Type | Priority | Depends on | Notes |
+|---|---|---|---|---|---|
+| R1 | [description specific enough to act on] | Remediation | P1 | — | [source segment / finding] |
+| E1 | [description] | Enhancement | P2 | R1 | [source] |
+| R2 | [description] | Remediation | P3 | — | [source] |
+| M1 | [description] | Migration | P5 | R1, R2 | [source] |
+
+### Backlog Summary
+
+| Priority | Count | Blocks new development? |
 |---|---|---|
-| `ai-dlc/rules/codebase-rules.md` | ✅ Written / N/A | Rules for AI assistants |
-| `ai-dlc/guidelines/forbidden-zones.md` | ✅ Written / N/A | Zones requiring human oversight |
-| `ai-dlc/guidelines/entry-points.md` | ✅ Written / N/A | Safe autonomous work zones |
-| `ai-dlc/rules/code-standards.md` | ✅ Written / N/A | Extracted code standards |
+| P1 — Must do first | [N] | Yes |
+| P2 — Do early | [N] | No |
+| P3 — Do alongside | [N] | No |
+| P4 — Schedule | [N] | No |
+| P5 — Defer | [N] | No |
 
 ---
 
-## 8. Recommended Next Steps
+## Recommended Next Steps
 
-### Immediate Actions (Complete Before Starting AI-DLC Work)
-- [Required manual check or high-risk Remediation Bolt to address first]
+### Before any new development begins
 
-### Quick Wins (Start Now)
-- [Low-complexity, low-risk Bolt — ID, name, estimated effort]
+[Every P1 item and every Critical finding with Fix-in-place recommendation. One bullet per item. This is the immediate action list.]
 
-### Suggested AI-DLC Work Order
-1. [Bolt ID + name — reason for this position in the order]
-2. [Bolt ID + name]
-...
+### Coding standards to write
 
-### How to Use the Overlay Files
-Add the following references to your project's `CLAUDE.md`:
-```markdown
-@ai-dlc/rules/codebase-rules.md
-@ai-dlc/guidelines/forbidden-zones.md
-@ai-dlc/guidelines/entry-points.md
-@ai-dlc/rules/code-standards.md
-```
-This loads all overlay files into the AI assistant's context automatically.
-```
+[Every Confirmed convention from the Coding Conventions table. These are safe to encode as rules.]
+
+### Items requiring a human decision before rules can be written
+
+[Every Split pattern and every unclassifiable finding. For each: what was observed, the two options, and what decision is needed.]
+
+### Blast radius controls to establish
+
+Before any bolt (batch of work) executes on existing code:
+
+1. **Test coverage gate** — verify adequate test coverage exists for the target module. If not, schedule coverage remediation first.
+2. **Feature flag requirement** — every change to an existing module must be wrapped in a feature flag.
+3. **Default acceptance criterion** — every bolt touching existing code must carry: *"All integration tests for [affected module] pass without modification."*
+4. **Breaking Changes Register** — required for any change to API shapes, data schemas, or inter-module interfaces.
 
 ---
 
-## Content Rules
+## Confidence Assessment
 
-1. Replace all `[bracketed]` placeholders with actual data from the analysis
-2. If any section's source agent output is missing, render that section as: `> ⚠️ Not available — [reason]`
-3. Work Classification must be preceded by the engineer confirmation note
-4. REQUIRED MANUAL CHECKs must use a blockquote warning and be impossible to miss
-5. Every Bolt must have an evidence citation
-6. The Recommended Next Steps section must always be actionable — no vague guidance
-7. Inconsistencies table must show "None identified" explicitly (never omit the row)
+| Dimension | Level | Notes |
+|---|---|---|
+| Architecture mapping | High / Medium / Low | [what limited confidence, if anything] |
+| Pattern extraction | High / Medium / Low | [sample size; any gaps] |
+| Due diligence coverage | High / Medium / Low | [areas not fully audited] |
+| Debt classification | High / Medium / Low | [ambiguities in classification] |
+
+**Overall confidence:** [High / Medium / Low]
+
+[Two to three sentences on what the agent is most and least confident about, and where human review would have the highest return.]
+
+---
+
+## Areas Not Analyzed
+
+| Area | Reason excluded | Follow-up needed? |
+|---|---|---|
+| `node_modules/` | Auto-excluded — third-party | No |
+| `[path]` | Configured skip / Auto-excluded / Context limit | Yes / No |
+
+---
+
+## Autonomous Decision Log
+
+```
+Decision Log
+─────────────────────────────────────────────────────────────
+[Phase] — [what decision was made] — [why]
+
+[Phase] — [what decision was made] — [why]
+─────────────────────────────────────────────────────────────
+```
+```

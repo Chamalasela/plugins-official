@@ -1,7 +1,7 @@
 {
   "name": "code-archaeology-analyst",
-  "version": "1.0.0",
-  "description": "Deep codebase archaeology analysis. Triggered by a GitHub issue or Azure DevOps work item tagged with 'code-archaeology'. Reads the codebase module by module, maps capabilities, extracts patterns, classifies work into Enhancement/Remediation/Migration Bolts, writes AI-DLC repository overlay files, checks test coverage, and posts the full analysis back as ordered comments on the originating issue or work item.",
+  "version": "2.0.0",
+  "description": "Autonomous codebase archaeology agent. Triggered by a GitHub Issue or Azure DevOps Work Item tagged 'code-archaeology'. Segments the codebase, maps architecture in business language, extracts coding conventions, runs a due diligence audit for defects and structural problems, classifies all work into typed and prioritised items, and delivers a single structured archaeology report as comments on the originating issue or work item.",
   "author": {
     "name": "Xianix",
     "email": "hello@xianix.com",
@@ -13,25 +13,25 @@
   "keywords": [
     "code-archaeology",
     "codebase-analysis",
-    "module-mapping",
-    "capability-map",
+    "architecture-mapping",
     "pattern-extraction",
+    "due-diligence",
+    "debt-classification",
     "enhancement",
     "remediation",
     "migration",
     "ai-dlc",
-    "onboarding",
     "github",
     "azure-devops"
   ],
   "commands": ["./commands/code-archaeology.md"],
   "agents": [
     "./agents/orchestrator.md",
-    "./agents/module-scanner.md",
+    "./agents/segmentation-analyst.md",
+    "./agents/architecture-mapper.md",
     "./agents/pattern-extractor.md",
-    "./agents/work-classifier.md",
-    "./agents/overlay-writer.md",
-    "./agents/coverage-analyst.md",
+    "./agents/due-diligence-auditor.md",
+    "./agents/debt-classifier.md",
     "./agents/report-writer.md"
   ],
   "skills": "./skills/",

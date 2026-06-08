@@ -1,23 +1,25 @@
 # Code Archaeology Analyst
 
-Deep codebase archaeology analysis plugin. Triggered by a GitHub Issue or Azure DevOps Work Item tagged `code-archaeology`. Fetches the issue, scans the codebase module by module, classifies all identified work, writes AI-DLC overlay files, and posts the full analysis back as ordered comments on the originating issue.
+Autonomous codebase archaeology plugin. Triggered by a GitHub Issue or Azure DevOps Work Item tagged `code-archaeology`. Segments the codebase, maps architecture in business language, extracts coding conventions, actively audits for defects and structural problems, classifies all work into typed and prioritized items, and delivers the complete report as ordered comments on the originating issue.
 
-Implements the Phase M1 setup guide workflow for AI-DLC onboarding.
+Implements the Phase M1 autonomous execution protocol for AI-DLC onboarding.
 
 ---
 
 ## Quick Start
 
-1. **Create a GitHub Issue** (or Azure DevOps Work Item) with the `code-archaeology` label:
+1. **Create a GitHub Issue** with the `code-archaeology` label. The body may contain an optional configuration block:
 
-   ```markdown
-   Title: Run code archaeology analysis
-
-   **Target path:** src/          (optional — defaults to repo root)
-   **Modules of interest:** src/auth, src/payments   (optional)
-
-   Please run a full code archaeology analysis to prepare for AI-DLC work.
    ```
+   ARCHAEOLOGY AGENT — START
+
+   Repository: src/
+   Focus areas: src/auth, src/payments
+   Skip areas:  src/legacy
+   Max segments: 5
+   ```
+
+   All fields are optional — the agent uses autonomous defaults if omitted.
 
 2. **Run the command:**
 
@@ -26,7 +28,7 @@ Implements the Phase M1 setup guide workflow for AI-DLC onboarding.
    /code-archaeology wi 1023
    ```
 
-3. The agent posts an "Analysis in Progress" comment immediately, then posts 5 ordered comments as the analysis completes.
+3. The agent posts "Analysis in Progress" immediately, runs all five phases, then posts five ordered comments with the complete report.
 
 ---
 
@@ -37,31 +39,72 @@ Implements the Phase M1 setup guide workflow for AI-DLC onboarding.
     └── orchestrator
           │
           ├── Step 0: Detect platform (GitHub / Azure DevOps / Generic)
-          ├── Step 1: Fetch issue #42 — parse target path and context
-          ├── Step 2: Post "Analysis in Progress" comment  ← immediate
+          ├── Step 1: Fetch issue #42 — parse configuration block
+          ├── Step 2: Post "Analysis in Progress"  ← immediate
           ├── Step 3: Initial codebase survey
           │
-          ├── Phase 1 (parallel):
-          │     ├── module-scanner     — reads every module, writes business descriptions,
-          │     │                        produces capability map, identifies service boundaries
-          │     └── pattern-extractor  — extracts naming conventions, error handling,
-          │                             ORM usage, API shapes, auth patterns, test patterns,
-          │                             data flows, and inconsistencies
+          ├── Phase 1:
+          │     └── segmentation-analyst  — autonomous segmentation (15–25 files/segment)
           │
-          ├── Phase 2:
-          │     └── work-classifier    — Enhancement / Remediation / Migration Bolts
+          ├── Phases 2–4 (parallel across all segments):
+          │     ├── architecture-mapper   — Module/Purpose/Owns/Calls/Exposes + boundaries + flows
+          │     ├── pattern-extractor     — 8 patterns: Consistent / Inconsistent / Split
+          │     └── due-diligence-auditor — 6 categories: Critical → Low with recommendations
           │
-          ├── Post comments 1–3: Module Map | Patterns | Work Classification
+          ├── Phase 5:
+          │     └── debt-classifier       — Enhancement / Remediation / Migration at P1–P5
           │
-          ├── Phase 3 (parallel):
-          │     ├── overlay-writer     — writes ai-dlc/ rule and guideline files
-          │     └── coverage-analyst   — test coverage + feature flag check
+          ├── report-writer  →  ai-dlc/reports/code-archaeology-analysis.md
           │
-          ├── Phase 4:
-          │     └── report-writer  →  ai-dlc/code-archaeology-analysis.md
-          │
-          └── Post comments 4–5: Blast Radius Controls | Analysis Complete
-                + Apply 'archaeology-complete' label/tag
+          └── Post 5 comments + apply 'archaeology-complete' label
+```
+
+---
+
+## Agents
+
+| Agent | Phase | Role |
+|---|---|---|
+| `orchestrator` | All | Platform detection, issue fetch, comment posting, phase coordination |
+| `segmentation-analyst` | 1 | Divides codebase into 15–25 file segments; assigns High/Medium/Low confidence per segment |
+| `architecture-mapper` | 2 (per segment) | Module/Purpose/Owns/Calls/Exposes descriptions; service boundary rules; data flows |
+| `pattern-extractor` | 3 (per segment) | Eight pattern types with Consistent / Inconsistent / Split verdicts |
+| `due-diligence-auditor` | 4 (per segment) | Logic defects, design violations, security gaps, fragile patterns, test blind spots, consistency breaks |
+| `debt-classifier` | 5 (cross-segment) | Enhancement / Remediation / Migration at P1–P5 priority |
+| `report-writer` | Final | Compiles the full structured report to `ai-dlc/reports/code-archaeology-analysis.md` |
+
+---
+
+## Report Structure
+
+```markdown
+# Codebase Archaeology Report
+├── Segment Map
+├── Architecture Summary
+│   ├── Capability Map
+│   ├── Module Descriptions (Module/Purpose/Owns/Calls/Exposes)
+│   ├── Service Boundaries
+│   ├── Integration Points
+│   ├── Data Flows
+│   └── Cross-Segment Dependencies
+├── Coding Conventions
+│   ├── Consolidated pattern table (8 types — Confirmed / Inconsistency / Split)
+│   └── Conventions requiring human decision (Split patterns)
+├── Due Diligence Findings
+│   ├── Critical
+│   ├── High
+│   ├── Medium
+│   ├── Low
+│   └── Findings requiring human decision
+├── Work Backlog (P1–P5)
+├── Recommended Next Steps
+│   ├── Before new development
+│   ├── Coding standards to write
+│   ├── Items requiring human decision
+│   └── Blast radius controls
+├── Confidence Assessment
+├── Areas Not Analyzed
+└── Autonomous Decision Log
 ```
 
 ---
@@ -71,27 +114,25 @@ Implements the Phase M1 setup guide workflow for AI-DLC onboarding.
 | # | Comment | Source |
 |---|---------|--------|
 | 0 | Analysis in Progress (immediate) | Orchestrator |
-| 1 | 🗺️ Module Map & Capability Map | module-scanner |
-| 2 | 🔍 Code Patterns & Conventions | pattern-extractor |
-| 3 | 📋 Work Classification | work-classifier |
-| 4 | 🛡️ Blast Radius Controls | coverage-analyst |
+| 1 | 🗺️ Architecture & Segment Map | architecture-mapper |
+| 2 | 🔍 Coding Conventions | pattern-extractor |
+| 3 | 🔎 Due Diligence Findings | due-diligence-auditor |
+| 4 | 📋 Work Backlog | debt-classifier |
 | 5 | ✅ Analysis Complete + Next Steps | Orchestrator |
-
-Comments with no meaningful findings are skipped.
 
 ---
 
-## Agents
+## Individual Skills
 
-| Agent | Phase | Role |
-|---|---|---|
-| `orchestrator` | All | Platform detection, issue fetch, comment posting, phase coordination |
-| `module-scanner` | 1 (parallel) | Enumerates every module; writes business descriptions; produces capability map |
-| `pattern-extractor` | 1 (parallel) | Reads 10–20 representative files; extracts all conventions and patterns; maps data flows |
-| `work-classifier` | 2 | Classifies all identified work into Enhancement / Remediation / Migration Bolts |
-| `overlay-writer` | 3 (parallel) | Writes four AI-DLC overlay files under `ai-dlc/` |
-| `coverage-analyst` | 3 (parallel) | Runs test suite for first entry-point module; assesses feature flag implementation |
-| `report-writer` | 4 | Produces the 8-section completion report at `ai-dlc/code-archaeology-analysis.md` |
+| Skill | Usage |
+|---|---|
+| `/run-archaeology issue <n>` | Full pipeline |
+| `/segment-codebase <path>` | Phase 1 only |
+| `/map-architecture <path>` | Phase 2 on one segment |
+| `/extract-patterns <path>` | Phase 3 on one segment |
+| `/audit-codebase <path>` | Phase 4 on one segment |
+| `/classify-debt` | Phase 5 from session findings |
+| `/post-report issue <n>` | Post existing report to an issue |
 
 ---
 
@@ -99,59 +140,27 @@ Comments with no meaningful findings are skipped.
 
 | Remote URL | Platform | Delivery |
 |---|---|---|
-| `github.com` | GitHub | Ordered comments via `gh` CLI + `archaeology-complete` label |
-| `dev.azure.com` / `visualstudio.com` | Azure DevOps | Ordered comments via REST API + `archaeology-complete` tag |
-| Anything else | Generic | Report written to `ai-dlc/code-archaeology-analysis.md` only |
-
----
-
-## Output Files (always written to disk)
-
-| File | Description |
-|---|---|
-| `ai-dlc/code-archaeology-analysis.md` | Full 8-section completion report |
-| `ai-dlc/rules/codebase-rules.md` | Directive rules for AI assistants — Always/Never/When |
-| `ai-dlc/guidelines/forbidden-zones.md` | Areas requiring human pilot intervention |
-| `ai-dlc/guidelines/entry-points.md` | Areas safe for autonomous AI work |
-| `ai-dlc/rules/code-standards.md` | Extracted code standards with examples |
-
----
-
-## Work Classification: Bolt Types
-
-| Bolt | Meaning | Example |
-|---|---|---|
-| **Enhancement** | New functionality the codebase is ready to receive | Add OAuth login, add a new API endpoint |
-| **Remediation** | Fix issues, improve quality, reduce debt | Fix a bug, add missing tests, resolve a security issue |
-| **Migration** | Move or transform existing functionality | Migrate to a new library, refactor module structure |
-
----
-
-## Flags
-
-| Flag | Effect |
-|---|---|
-| `--no-overlay` | Skip writing `ai-dlc/` overlay files |
-| `--no-coverage` | Skip test coverage analysis and feature flag check |
+| `github.com` | GitHub | 5 ordered comments + `archaeology-complete` label |
+| `dev.azure.com` / `visualstudio.com` | Azure DevOps | 5 ordered comments + `archaeology-complete` tag |
+| Anything else | Generic | Report to disk only |
 
 ---
 
 ## Key Design Decisions
 
+- **Autonomous execution** — no interactive back-and-forth; the agent makes all segmentation, severity, and classification decisions using judgment rules documented in each agent
 - **Issue-triggered** — follows the `req-analyst` pattern: create an issue with a tag, run the command, get results back as comments on the same issue
-- **Immediate "in progress" comment** — posted before any analysis begins so the team knows work has started
-- **Autonomous execution** — no confirmation gate; work classification is posted as a comment for the team to review and respond to
-- **Non-destructive** — the original issue description is never modified; all output is posted as separate comments
-- **Dual output** — results posted as comments on the issue AND written to disk as AI-DLC overlay files
-- **Platform-agnostic agents** — sub-agents are source-agnostic; only Steps 0–2 and 9 are platform-specific
-- **Budget warnings** — agents emit explicit `⚠️ Tool budget reached` warnings if they can't fully analyze the codebase
-- **REQUIRED MANUAL CHECK** — if tests can't run, coverage-analyst flags this prominently
+- **Per-segment parallelism** — Phases 2, 3, and 4 run simultaneously across all segments to minimize elapsed time
+- **Single complete report** — all phases run to completion before any comment is posted; no progressive streaming
+- **Split pattern handling** — patterns where no single convention dominates are flagged explicitly for human decision, never silently resolved
+- **Autonomous Decision Log** — every non-obvious judgment call is recorded, making the agent's reasoning auditable without a human present during execution
+- **Agent limitations** — the report includes a permanent "What the Agent Cannot Do" section: Split conventions, business logic correctness, test quality beyond structure, runtime behavior, and in-depth security assessment all require human review
 
 ---
 
 ## Prerequisites
 
-- Must be run inside a git repository with an issue/work item to reference
+- Must be run inside a git repository
 - **GitHub:** `gh` CLI installed and authenticated (`gh auth login`)
 - **Azure DevOps:** `AZURE-DEVOPS-TOKEN` environment variable set
-- **Generic / plain text:** nothing — report written to disk only
+- **Generic:** nothing required

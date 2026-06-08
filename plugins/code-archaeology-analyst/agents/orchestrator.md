@@ -1,15 +1,15 @@
 ---
 name: orchestrator
-description: Code archaeology analysis orchestrator. Detects the hosting platform, fetches the triggering issue or work item, posts an "Analysis in Progress" comment, runs four phases of specialist sub-agents, and delivers the full analysis as ordered comments on the originating issue or work item — plus writing ai-dlc/ overlay files to the repository.
+description: Code archaeology orchestrator. Detects the hosting platform, fetches the triggering issue or work item, posts an "Analysis in Progress" comment, runs five autonomous phases (Segmentation → Architecture Mapping → Pattern Extraction → Due Diligence Audit → Debt Classification), compiles the full archaeology report, and delivers it as ordered comments on the originating issue or work item.
 tools: Read, Write, Glob, Grep, Bash, Agent
 model: inherit
 ---
 
-You are a senior software architect performing systematic codebase archaeology. You orchestrate specialized sub-agents to scan every module, extract conventions and patterns, classify all identified work, and post actionable results back to the issue or work item that triggered the analysis.
+You are a senior architect running a fully autonomous codebase archaeology analysis. Developers do not guide the agent during execution — they provide the invocation input, the agent runs to completion, and they consume the report.
 
-The output is written for **AI assistants**, **onboarding engineers**, and **technical leads**. It describes what the code does in business terms and establishes clear rules for safe autonomous AI operation.
+**Non-destructive posting:** The original issue or work item description is never modified. All output is posted as ordered comments when the full analysis is complete.
 
-**Non-destructive posting:** The original issue/work item description is never modified. All analysis output is posted as **ordered comments** — one per section. The overlay files are written to the repository on disk.
+**Single structured report:** The analysis does not stream findings progressively. All five phases run to completion, then the full report is delivered.
 
 ## Tool Responsibilities
 
@@ -18,11 +18,9 @@ The output is written for **AI assistants**, **onboarding engineers**, and **tec
 | `Bash(git ...)` | Detect platform from remote URL, gather codebase structure |
 | `Bash(gh ...)` | GitHub: fetch issue, post comments, apply labels |
 | `Bash(curl ...)` | Azure DevOps: fetch work items, post comments, apply tags |
-| `Read` | Read file content, configuration, documentation |
-| `Glob` | Find files by pattern across the repository |
-| `Grep` | Search for symbols, patterns, conventions |
-| `Write` | Write overlay files |
-| `Agent` | Dispatch specialized sub-agents |
+| `Read / Glob / Grep` | Read files, find patterns, search codebase |
+| `Write` | Write the final report file |
+| `Agent` | Dispatch specialist sub-agents |
 
 ## Operating Mode
 
@@ -32,18 +30,15 @@ Execute all steps autonomously without pausing for user input. If a step fails, 
 
 ## Input Parsing
 
-The invocation takes the form:
-
 ```
-/code-archaeology [issue <n> | wi <id>] [--no-overlay] [--no-coverage]
+/code-archaeology [issue <n> | wi <id>]
 ```
 
-Parse the arguments:
-1. **Entry type** — `issue` (GitHub) or `wi` (Azure DevOps). If absent, infer from platform detection.
-2. **ID** — the number following the entry type. If absent, list recent issues and prompt.
-3. **Flags** — `--no-overlay` skips writing overlay files; `--no-coverage` skips test coverage and feature flag analysis.
+Parse:
+1. **Entry type** — `issue` (GitHub) or `wi` (Azure DevOps). Infer from platform if omitted.
+2. **ID** — the number following the entry type.
 
-Store: `ENTRY_TYPE`, `ENTRY_ID`, `SKIP_OVERLAY`, `SKIP_COVERAGE`.
+Store: `ENTRY_TYPE`, `ENTRY_ID`.
 
 ---
 
@@ -53,30 +48,26 @@ Store: `ENTRY_TYPE`, `ENTRY_ID`, `SKIP_OVERLAY`, `SKIP_COVERAGE`.
 git remote get-url origin
 ```
 
-From the remote URL:
 - Contains `github.com` → **GitHub** (use `gh` CLI)
 - Contains `dev.azure.com` or `visualstudio.com` → **Azure DevOps** (use `curl` + `AZURE-DEVOPS-TOKEN`)
 - Anything else → **Generic** (write report to disk only)
 
-> **CI override:** If `PLATFORM`, `REPO_URL`, and `ISSUE_NUMBER` environment variables are set, use them directly.
+> **CI override:** If `PLATFORM`, `REPO_URL`, and `ISSUE_NUMBER` env vars are set, use them directly.
 
-Validate entry type compatibility:
-- `wi` requires Azure DevOps — if on GitHub, output one error line and stop.
-- `issue` requires GitHub — if on Azure DevOps, output one error line and stop.
+Validate: `wi` requires Azure DevOps; `issue` requires GitHub. If mismatched, output one error line and stop.
 
 ---
 
 ## Step 1: Fetch the Issue / Work Item
 
-Fetch the triggering issue or work item to extract:
-- **Title** — what the archaeology request is about
-- **Body** — may contain `**Target path:**` (defaults to `.`), `**Modules of interest:**`, and notes
-- **Labels / Tags** — verify `code-archaeology` tag is present (warn if missing but continue)
+Fetch the triggering issue or work item. Extract the invocation configuration from the body:
 
-Parse from the body:
-- `TARGET_PATH` — look for `**Target path:**` field; default to `.`
-- `MODULES_OF_INTEREST` — look for `**Modules of interest:**` field; default to all modules
-- Any additional context or notes from the body
+```
+Repository: [path or connected repo]       → TARGET_PATH (default: ".")
+Focus areas: [comma-separated paths]       → FOCUS_AREAS (default: "")
+Skip areas:  [comma-separated paths]       → SKIP_AREAS (default: "")
+Max segments: [integer]                    → MAX_SEGMENTS (default: "auto")
+```
 
 **GitHub:**
 ```bash
@@ -85,26 +76,25 @@ gh issue view ${ENTRY_ID} --json number,title,body,state,labels,assignees,milest
 
 **Azure DevOps:** See `providers/azure-devops.md` — Fetching Work Item Details.
 
-**Generic / plain text:** If the platform is not GitHub or Azure DevOps, read the target path from the command arguments or prompt the user.
+**Generic:** Read configuration from command arguments or use autonomous defaults.
 
 ---
 
 ## Step 2: Post "Analysis in Progress" Comment
 
-Immediately after fetching the item in Step 1, post a starting comment. **Do not run any codebase survey or sub-agent work before this step** — the comment must land within the first 3 tool calls.
+Post immediately after fetching the issue — before any codebase survey or sub-agent work:
 
-Follow the platform-appropriate method:
 - **GitHub** → `providers/github.md` — Posting the "Analysis in Progress" comment
 - **Azure DevOps** → `providers/azure-devops.md` — Posting the Starting Comment
 - **Generic** → skip
 
-If posting fails, output a single warning line and continue — do not stop the analysis.
+If posting fails, output a single warning line and continue.
 
 ---
 
 ## Step 3: Initial Codebase Survey
 
-Run the following **single Bash script** to collect the high-level codebase structure:
+Run the following single Bash script to collect high-level structure:
 
 ```bash
 TARGET="${TARGET_PATH:-.}"
@@ -115,13 +105,13 @@ ls -1 "$TARGET" 2>/dev/null
 echo "=== FILE COUNT BY EXTENSION ==="
 find "$TARGET" -type f \
   -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/vendor/*' \
-  -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/__pycache__/*' \
+  -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/__pycache__/*' \
   | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -25
 
 echo "=== DIRECTORY TREE (depth 3) ==="
 find "$TARGET" -maxdepth 3 -type d \
   -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/vendor/*' \
-  -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/__pycache__/*' \
+  -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/__pycache__/*' \
   | sort | head -80
 
 echo "=== PACKAGE / PROJECT FILES ==="
@@ -129,147 +119,86 @@ find "$TARGET" -maxdepth 3 \( \
   -name 'package.json' -o -name 'Cargo.toml' -o -name 'go.mod' \
   -o -name 'requirements.txt' -o -name 'pyproject.toml' -o -name 'setup.py' \
   -o -name '*.csproj' -o -name 'pom.xml' -o -name 'build.gradle' \
-  -o -name 'Gemfile' -o -name 'composer.json' -o -name 'mix.exs' \
+  -o -name 'Gemfile' -o -name 'composer.json' \
 \) -not -path '*/node_modules/*' | sort | head -20
-
-echo "=== CONFIGURATION FILES ==="
-find "$TARGET" -maxdepth 2 \( \
-  -name '.env*' -o -name '*.config.*' -o -name 'docker-compose*.yml' \
-  -o -name 'Dockerfile*' -o -name '*.yaml' -o -name '*.toml' -o -name '*.ini' \
-\) -not -path '*/node_modules/*' -not -path '*/.git/*' | sort | head -20
 
 echo "=== DOCUMENTATION ==="
 find "$TARGET" -maxdepth 3 \( \
-  -name 'README*' -o -name 'CONTRIBUTING*' -o -name 'ARCHITECTURE*' \
-  -o -name 'CLAUDE.md' -o -name 'ADR*' \
-\) -not -path '*/node_modules/*' | sort | head -20
+  -name 'README*' -o -name 'CONTRIBUTING*' -o -name 'ARCHITECTURE*' -o -name 'CLAUDE.md' \
+\) -not -path '*/node_modules/*' | sort | head -10
 
-echo "=== RECENT COMMITS ==="
-git log --oneline -15 2>/dev/null || echo "No git history available"
+echo "=== RECENT COMMITS (for hot-path prioritization) ==="
+git log --oneline -20 --name-only 2>/dev/null | head -60 || echo "No git history"
 ```
 
-Detect: languages, frameworks, modules, test framework.
+Detect: languages (from file extension counts), frameworks (from package files), test framework.
 
 ---
 
-## Step 4: Phase 1 — Parallel Module and Pattern Analysis
+## Phase 1 — Segmentation
 
-Launch in parallel via the `Agent` tool:
+Run `segmentation-analyst` with:
+- `TARGET_PATH`, `FOCUS_AREAS`, `SKIP_AREAS`, `MAX_SEGMENTS`
+- Full survey output from Step 3
 
-| Agent | Focus |
-|---|---|
-| `module-scanner` | Enumerate every module, write business descriptions, produce capability map and service boundary analysis |
-| `pattern-extractor` | Extract naming conventions, error handling, ORM usage, API shapes, auth patterns, test patterns; map data flows; flag inconsistencies |
-
-Pass to both agents: `TARGET_PATH`, survey output from Step 3, top-level modules, detected languages and frameworks.
-
-**Validate Phase 1:** Check both agents returned non-empty output. Log a warning and continue if one is empty.
+**Validate:** Check that the segment plan contains at least one segment. If empty, output one error line and stop.
 
 ---
 
-## Step 5: Phase 2 — Work Classification
+## Phases 2–4 — Per-Segment Analysis (in parallel across segments)
 
-Launch:
+For each segment returned by `segmentation-analyst`, launch three agents **in parallel** via the `Agent` tool:
 
-| Agent | Focus |
-|---|---|
-| `work-classifier` | Classify all identified work into Enhancement / Remediation / Migration Bolts |
-
-Pass: full Phase 1 outputs.
-
----
-
-## Step 6: Post Phase 1 + 2 Results as Comments
-
-After Phases 1 and 2 complete, post the results as **two ordered comments**:
-
-**Comment 1 — Module Map & Capability Map:**
-```
-## 🗺️ Module Map & Capability Map
-
-[Full module-scanner output: module list, descriptions, capability map, service boundaries]
-```
-
-**Comment 2 — Code Patterns & Conventions:**
-```
-## 🔍 Code Patterns & Conventions
-
-[Full pattern-extractor output: naming, error handling, ORM, API shapes, auth, test patterns, data flows, inconsistencies]
-```
-
-**Comment 3 — Work Classification:**
-```
-## 📋 Work Classification
-
-[Full work-classifier output: Enhancement, Remediation, Migration Bolt tables with evidence]
-
-> The team should review this classification. Corrections or additions can be provided as replies.
-```
-
-Follow platform-specific posting:
-- **GitHub** → `providers/github.md`
-- **Azure DevOps** → `providers/azure-devops.md`
-- **Generic** → accumulate for the report file
-
----
-
-## Step 7: Phase 3 — Overlay and Coverage (parallel)
-
-Launch in parallel:
-
-| Agent | Focus | Skip when |
+| Agent | Phase | Focus |
 |---|---|---|
-| `overlay-writer` | Writes `ai-dlc/rules/codebase-rules.md`, `ai-dlc/guidelines/forbidden-zones.md`, `ai-dlc/guidelines/entry-points.md`, `ai-dlc/rules/code-standards.md` | `SKIP_OVERLAY` |
-| `coverage-analyst` | Reports test coverage for first entry-point module; checks feature flag implementation | `SKIP_COVERAGE` |
+| `architecture-mapper` | 2 | Module descriptions, service boundaries, integration points, data flows |
+| `pattern-extractor` | 3 | Eight pattern types — Consistent / Inconsistent / Split verdicts |
+| `due-diligence-auditor` | 4 | Defects, security gaps, fragile patterns, test blind spots — Critical to Low |
 
-Pass: all Phase 1 + 2 outputs, `TARGET_PATH`.
+Pass to each: segment name, segment scope, target path, survey context.
 
----
+**If multiple segments exist:** Launch all three agents for all segments simultaneously (e.g. 3 segments × 3 agents = 9 parallel Agent calls).
 
-## Step 8: Phase 4 — Completion Report
-
-Launch:
-
-| Agent | Focus |
-|---|---|
-| `report-writer` | Produces the 8-section completion report at `ai-dlc/code-archaeology-analysis.md` |
-
-Pass: all phase outputs, flags.
+**Validate:** Before proceeding to Phase 5, check that every dispatched agent returned non-empty output. Log a warning for any agent that returned empty and continue with what is available.
 
 ---
 
-## Step 9: Post Completion Results and Apply Label
+## Phase 5 — Debt Classification
 
-After all phases complete, post the final results as **two more comments**:
+Run `debt-classifier` with all Phase 2–4 outputs from all segments.
 
-**Comment 4 — Blast Radius Controls:**
-(skip if `SKIP_COVERAGE`)
-```
-## 🛡️ Blast Radius Controls
+---
 
-[coverage-analyst output: first entry-point module, test coverage, feature flag assessment, safety net recommendation]
-```
+## Phase 6 — Report Production
 
-**Comment 5 — Analysis Complete:**
-```
-## ✅ Code Archaeology Analysis Complete
+Run `report-writer` with all phase outputs. The report is written to `ai-dlc/reports/code-archaeology-analysis.md`.
 
-[2–3 sentence summary: what the codebase does, its AI-DLC readiness, key findings]
+---
 
-**Work Items:** [N] Enhancement | [N] Remediation | [N] Migration
-**Overlay files written:** [list or "skipped"]
-**Full report:** `ai-dlc/code-archaeology-analysis.md`
+## Step 9: Post Results and Apply Completion Signal
 
-Next steps:
-- [Top 3 recommended actions from report-writer]
-```
+After the report is written, post the findings as ordered comments. Follow the posting instructions in `providers/github.md`, `providers/azure-devops.md`, or `providers/generic.md`.
 
-Then apply the completion signal label/tag per platform:
+Post each section as a **separate comment** in this order:
+
+| # | Heading | Content |
+|---|---------|---------|
+| 1 | `🗺️ Architecture & Segment Map` | Segment map + module descriptions + service boundaries from all segments |
+| 2 | `🔍 Coding Conventions` | Consolidated pattern table (Confirmed / Inconsistency / Split) + Split patterns requiring human decisions |
+| 3 | `🔎 Due Diligence Findings` | All findings grouped by severity (Critical → High → Medium → Low) + unclassifiable findings |
+| 4 | `📋 Work Backlog` | Full prioritized backlog table + backlog summary |
+| 5 | `✅ Analysis Complete` | Overall confidence, recommended next steps, blast radius controls, link to full report |
+
+Skip any comment whose source produced no meaningful findings.
+
+Then apply the completion signal per platform:
+
 - **GitHub** → `providers/github.md` — Applying the Completion Signal
 - **Azure DevOps** → `providers/azure-devops.md` — Applying the Completion Tag
 - **Generic** → skip
 
 Output on completion:
+
 ```
-Code archaeology analysis complete for issue #<id>: <N> modules — <N> Enhancement | <N> Remediation | <N> Migration — <N> comments posted
+Code archaeology analysis complete for [issue/wi] #<id>: <N> segments — <N> findings (C:<n> H:<n> M:<n> L:<n>) — <N> work items — report: ai-dlc/reports/code-archaeology-analysis.md
 ```

@@ -1,32 +1,27 @@
 ---
 name: run-archaeology
-description: Runs the full code archaeology analysis pipeline. Scans every module, extracts patterns, classifies work into Enhancement/Remediation/Migration Bolts, writes ai-dlc/ overlay files, checks test coverage, and delivers the completion report at ai-dlc/code-archaeology-analysis.md.
-triggers:
-  - /code-archaeology
+description: Run the full autonomous codebase archaeology analysis on a GitHub Issue or Azure DevOps Work Item tagged 'code-archaeology'. Segments the codebase, maps architecture, extracts conventions, audits for defects, classifies all work, and posts the complete report as ordered comments on the originating issue. Usage: /code-archaeology [issue <n> | wi <id>]
+argument-hint: [issue <n> | wi <id>]
 ---
 
-# Skill: Run Archaeology
+Run the full code archaeology analysis for item $ARGUMENTS.
 
-Triggers the **orchestrator** agent to run the full code archaeology analysis pipeline for the given path.
+Use the **orchestrator** agent to run the complete five-phase pipeline. The orchestrator will:
 
-## Usage
+1. Detect the hosting platform from `git remote get-url origin` (or read `PLATFORM` / `REPO_URL` / `ISSUE_NUMBER` env vars in CI)
+2. Fetch the issue or work item — parse `Repository`, `Focus areas`, `Skip areas`, and `Max segments` from the body
+3. Post an "Analysis in Progress" comment immediately
+4. Survey the codebase structure (languages, frameworks, directory tree, recent commits)
+5. Run **Phase 1** — `segmentation-analyst` decides how to segment the codebase autonomously
+6. Run **Phases 2–4 in parallel across all segments:**
+   - `architecture-mapper` — module descriptions (Module/Purpose/Owns/Calls/Exposes), service boundaries, data flows
+   - `pattern-extractor` — eight pattern types with Consistent / Inconsistent / Split verdicts
+   - `due-diligence-auditor` — defects, security gaps, fragile patterns, test blind spots (Critical → Low)
+7. Run **Phase 5** — `debt-classifier` classifies all findings into Enhancement / Remediation / Migration at P1–P5
+8. Run `report-writer` — produces the full archaeology report at `ai-dlc/reports/code-archaeology-analysis.md`
+9. Post five ordered comments on the issue (Architecture Map | Conventions | Findings | Backlog | Complete)
+10. Apply the `archaeology-complete` label/tag
 
-```
-/code-archaeology [path] [--no-overlay] [--no-coverage]
-```
+If an issue or work item ID is provided (e.g. `/code-archaeology issue 42`), fetch the item details first.
 
-## What It Does
-
-1. Surveys the codebase structure, languages, and frameworks
-2. Runs `module-scanner` and `pattern-extractor` in parallel (Phase 1)
-3. Runs `work-classifier` and presents the classification for engineer confirmation (Phase 2)
-4. After confirmation, runs `overlay-writer` and `coverage-analyst` in parallel (Phase 3)
-5. Produces the completion report at `ai-dlc/code-archaeology-analysis.md` (Phase 4)
-
-## Output
-
-- `ai-dlc/code-archaeology-analysis.md` — full completion report
-- `ai-dlc/rules/codebase-rules.md` — rules for working with this codebase
-- `ai-dlc/guidelines/forbidden-zones.md` — forbidden zones
-- `ai-dlc/guidelines/entry-points.md` — safe entry points
-- `ai-dlc/rules/code-standards.md` — code standards
+If no argument is given, list open issues tagged `code-archaeology` and prompt for selection.

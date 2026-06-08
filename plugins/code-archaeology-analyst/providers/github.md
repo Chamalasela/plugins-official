@@ -4,7 +4,7 @@ Use this provider when `git remote get-url origin` contains `github.com`.
 
 ## Prerequisites
 
-The `gh` CLI must be installed and authenticated. Verify with:
+The `gh` CLI must be installed and authenticated:
 
 ```bash
 gh auth status
@@ -16,40 +16,29 @@ If not authenticated, run `gh auth login` or set the `GITHUB_TOKEN` environment 
 
 ## Fetching the Issue
 
-Fetch the triggering issue with all metadata:
-
 ```bash
 gh issue view ${ISSUE_NUMBER} --json number,title,body,state,labels,assignees,milestone,comments
 ```
 
-Extract from the JSON response:
-- `title` — issue title (context for the analysis)
-- `body` — issue description — parse for `**Target path:**` and `**Modules of interest:**`
-- `labels[].name` — check for `code-archaeology` tag
-- `assignees[].login` — who requested the analysis
-- `comments[].body` — any prior context
+Extract from the body:
+- `Repository:` → `TARGET_PATH` (default: `.`)
+- `Focus areas:` → `FOCUS_AREAS` (default: `""`)
+- `Skip areas:` → `SKIP_AREAS` (default: `""`)
+- `Max segments:` → `MAX_SEGMENTS` (default: `"auto"`)
 
-**Parsing the issue body:**
-
-Look for optional structured fields:
-```
-**Target path:** src/payments        → TARGET_PATH
-**Modules of interest:** src/auth    → MODULES_OF_INTEREST
-```
-
-If not present, default `TARGET_PATH` to `.` (repo root).
+Check that the `code-archaeology` label is present — warn if missing but continue.
 
 ---
 
 ## Posting the "Analysis in Progress" Comment
 
-Post immediately after fetching the issue — before any codebase survey or sub-agent work:
+Post immediately after fetching the issue — before any codebase survey:
 
 ```bash
 gh issue comment ${ISSUE_NUMBER} --body "$(cat <<'EOF'
-🔍 **Code archaeology analysis in progress**
+🔍 **Codebase archaeology analysis in progress**
 
-Scanning the codebase module by module — mapping capabilities, extracting patterns, and classifying work into Enhancement / Remediation / Migration Bolts. The analysis will be posted as a series of comments when complete. This may take a few minutes.
+Segmenting the codebase and running five analysis phases: architecture mapping, pattern extraction, due diligence audit, and debt classification. The full report will be posted as a series of comments when all phases are complete. This may take several minutes.
 EOF
 )"
 ```
@@ -60,25 +49,23 @@ If posting fails, output a single warning line and continue.
 
 ## Posting Analysis Comments
 
-The original issue body is **never modified**. All analysis output is posted as **separate comments** — one per section.
+The original issue body is **never modified**. All output is posted as **separate comments** when the full analysis is complete.
 
 ### Comment Order
 
-| # | Heading | Source | Skip when |
-|---|---------|--------|-----------|
-| 1 | `🗺️ Module Map & Capability Map` | module-scanner | Never |
-| 2 | `🔍 Code Patterns & Conventions` | pattern-extractor | Never |
-| 3 | `📋 Work Classification` | work-classifier | Never |
-| 4 | `🛡️ Blast Radius Controls` | coverage-analyst | `--no-coverage` |
-| 5 | `✅ Analysis Complete` | Orchestrator | Never |
-
-Skip any comment whose source produced no meaningful findings.
+| # | Heading | Skip when |
+|---|---------|-----------|
+| 1 | `🗺️ Architecture & Segment Map` | Never |
+| 2 | `🔍 Coding Conventions` | Never |
+| 3 | `🔎 Due Diligence Findings` | No findings at any severity |
+| 4 | `📋 Work Backlog` | Never |
+| 5 | `✅ Analysis Complete` | Never |
 
 ### Posting each comment
 
 ```bash
 gh issue comment ${ISSUE_NUMBER} --body "$(cat <<'EOF'
-## 🗺️ Module Map & Capability Map
+## 🗺️ Architecture & Segment Map
 
 ${COMMENT_CONTENT}
 EOF
@@ -89,32 +76,30 @@ EOF
 
 ## Applying the Completion Signal
 
-After posting all comments, apply the completion label:
+After all comments are posted:
 
 ```bash
+# Create the label if it does not exist
+gh label create "archaeology-complete" \
+  --color "0075ca" \
+  --description "Code archaeology analysis completed" 2>/dev/null || true
+
+# Apply to the issue
 gh issue edit ${ISSUE_NUMBER} --add-label "archaeology-complete"
-```
 
-Also remove the trigger label (optional — preserves the history if kept):
-
-```bash
-gh issue edit ${ISSUE_NUMBER} --remove-label "code-archaeology"
-```
-
-If the `archaeology-complete` label doesn't exist in the repo, create it first:
-
-```bash
-gh label create "archaeology-complete" --color "0075ca" --description "Code archaeology analysis has been completed" 2>/dev/null || true
+# Remove the trigger label (optional)
+gh issue edit ${ISSUE_NUMBER} --remove-label "code-archaeology" 2>/dev/null || true
 ```
 
 ---
 
 ## Resolving the Issue Number
 
-If no issue number was passed as an argument:
+If no issue number was passed:
 
 ```bash
-gh issue list --label "code-archaeology" --state open --json number,title,createdAt --limit 10
+gh issue list --label "code-archaeology" --state open \
+  --json number,title,createdAt --limit 10
 ```
 
 Pick the most recently created open issue with the `code-archaeology` label.
@@ -126,5 +111,5 @@ Pick the most recently created open issue with the `code-archaeology` label.
 On completion:
 
 ```
-Code archaeology analysis complete for issue #<number>: <N> modules — <N> Enhancement | <N> Remediation | <N> Migration — <N> comments posted
+Code archaeology analysis complete for issue #<number>: <N> segments — <N> findings (C:<n> H:<n> M:<n> L:<n>) — <N> work items — <N> comments posted
 ```
