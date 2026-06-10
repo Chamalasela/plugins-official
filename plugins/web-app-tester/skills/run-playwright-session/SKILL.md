@@ -21,7 +21,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 A list of result entries (held inline, not written to a file):
 
 ```
-{ n, desc, status: PASSED|FAILED|BLOCKED, reason, screenshot }
+{ n, desc, status: PASSED|FAILED|BLOCKED, reason, action, duration_ms, screenshot }
 ```
 
 ## Execution Rules (strictly enforced)
@@ -120,9 +120,11 @@ The script must follow this contract:
 
 1. **Log format** — every step writes exactly one line to `_wat_run/log.txt` in this pipe-delimited format:
    ```
-   STEP_RESULT|<n>|<STATUS>|<desc>|<reason>
+   STEP_RESULT|<n>|<STATUS>|<desc>|<reason>|<action>|<duration_ms>
    ```
    `<STATUS>` is one of: `PASSED`, `FAILED`, `BLOCKED`
+   `<action>` is a human-readable sentence of what Playwright did (e.g. `Clicked button 'Submit'`, `Filled 'Email' with 'test@example.com'`, `Navigated to https://...`, `Verified text 'Success' is visible`)
+   `<duration_ms>` is the integer milliseconds the step took, measured with `time.time()` around the action block
 
 2. **Per-step try/except** — wrap each step in its own `try/except` block so subsequent steps still run after a failure.
 
@@ -138,13 +140,14 @@ The script must follow this contract:
 
 ```python
 import sys
+import time
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 PRODUCTION_WARNING = "${PRODUCTION_WARNING}" == "true"
 LOG = open("_wat_run/log.txt", "w")
 
-def log_step(n, status, desc, reason=""):
-    line = f"STEP_RESULT|{n}|{status}|{desc}|{reason}"
+def log_step(n, status, desc, reason="", action="", duration_ms=0):
+    line = f"STEP_RESULT|{n}|{status}|{desc}|{reason}|{action}|{duration_ms}"
     LOG.write(line + "\n")
     LOG.flush()
     print(line)
@@ -176,32 +179,35 @@ with sync_playwright() as p:
     # (Agent writes one try/except block per step, adapted to the actual action)
 
     # Example step: click
+    _start = time.time()
     try:
         page.get_by_role("button", name="Submit").click(timeout=10000)
         page.screenshot(path="_wat_run/screenshots/step_1_passed.png")
-        log_step(1, "PASSED", "Click Submit button")
+        log_step(1, "PASSED", "Click Submit button", action="Clicked button 'Submit'", duration_ms=int((time.time()-_start)*1000))
     except Exception as e:
         page.screenshot(path="_wat_run/screenshots/step_1_fail.png")
-        log_step(1, "BLOCKED", "Click Submit button", str(e))
+        log_step(1, "BLOCKED", "Click Submit button", str(e), action="Clicked button 'Submit'", duration_ms=int((time.time()-_start)*1000))
 
     # Example step: fill (PRODUCTION_WARNING guard)
     if PRODUCTION_WARNING:
-        log_step(2, "BLOCKED", "Fill contact form", "Skipped — production URL, read-only mode")
+        log_step(2, "BLOCKED", "Fill contact form", "Skipped — production URL, read-only mode", action="Filled 'Email' with test value")
     else:
+        _start = time.time()
         try:
             page.get_by_label("Email").fill("test@example.com", timeout=10000)
-            log_step(2, "PASSED", "Fill contact form")
+            log_step(2, "PASSED", "Fill contact form", action="Filled 'Email' with 'test@example.com'", duration_ms=int((time.time()-_start)*1000))
         except Exception as e:
             page.screenshot(path="_wat_run/screenshots/step_2_fail.png")
-            log_step(2, "BLOCKED", "Fill contact form", str(e))
+            log_step(2, "BLOCKED", "Fill contact form", str(e), action="Filled 'Email' with 'test@example.com'", duration_ms=int((time.time()-_start)*1000))
 
     # Example step: verify
+    _start = time.time()
     try:
         page.wait_for_selector("text=Success", timeout=10000)
-        log_step(3, "PASSED", "Verify success message is visible")
+        log_step(3, "PASSED", "Verify success message is visible", action="Verified text 'Success' is visible", duration_ms=int((time.time()-_start)*1000))
     except Exception as e:
         page.screenshot(path="_wat_run/screenshots/step_3_fail.png")
-        log_step(3, "FAILED", "Verify success message is visible", "Success message not found after action")
+        log_step(3, "FAILED", "Verify success message is visible", "Success message not found after action", action="Verified text 'Success' is visible", duration_ms=int((time.time()-_start)*1000))
 
     browser.close()
 

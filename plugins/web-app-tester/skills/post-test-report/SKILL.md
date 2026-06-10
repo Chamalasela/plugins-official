@@ -12,7 +12,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 
 | Variable | Source | Description |
 |---|---|---|
-| Inline result list | run-playwright-session | One entry per step: `{ n, desc, status, reason, screenshot }` |
+| Inline result list | run-playwright-session | One entry per step: `{ n, desc, status, reason, action, duration_ms, screenshot }` |
 | `TEST_URL` | gather-test-context | URL that was tested |
 | `PRODUCTION_WARNING` | gather-test-context | Whether read-only mode was applied |
 | `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
@@ -55,20 +55,20 @@ URL tested: {TEST_URL}
 Total: N | ✅ Passed: X | ❌ Failed: Y | 🔴 Blocked: Z
 Overall: PASSED / FAILED / BLOCKED
 
-| # | Step | Status |
-|---|------|--------|
-| 1 | {step description} | ✅ PASSED |
-| 2 | {step description} | ❌ FAILED |
-
-[For each FAILED or BLOCKED step:]
-**Step N — {description}**
-Reason: {what went wrong after 3 retries}
-[Screenshot attached if available]
+{one <details> block per step}
 ```
+
+**Rendering each step block:** parse `action`, `duration_ms`, `status`, `desc`, and `reason` from the inline result list. Compute duration in seconds rounded to one decimal (e.g. `duration_ms=1234` → `1.2s`). Follow the exact block format defined in the `Step Detail Block Format` section of `styles/report-template.md`:
+
+- PASSED → summary with ✅, action, duration
+- FAILED → summary with ❌, action, duration, reason
+- BLOCKED → summary with 🔴, action, duration (if available), reason
+
+For BLOCKED steps skipped due to PRODUCTION_WARNING, `duration_ms` will be 0 — omit the duration from the summary line and the Duration field entirely.
 
 Step descriptions in the report must be in **business language** — describe the user action and observed outcome, not the Playwright command. See the `Step Description Format` section in `styles/report-template.md` for examples.
 
-For FAILED and BLOCKED steps, screenshots are **described inline** as "captured at point of failure" — neither GitHub nor Azure DevOps PR comments support direct file attachments, so the PNG files are not uploaded.
+Screenshots are not uploaded — neither GitHub nor Azure DevOps PR comments support direct file attachments.
 
 Store as `REPORT_BODY`.
 

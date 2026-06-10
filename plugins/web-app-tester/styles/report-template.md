@@ -21,28 +21,49 @@ URL tested: {TEST_URL}
 Total: {N} | ✅ Passed: {X} | ❌ Failed: {Y} | 🔴 Blocked: {Z}
 Overall: {PASSED | FAILED | BLOCKED}
 
-| # | Step | Status |
-|---|------|--------|
-| 1 | {step description} | ✅ PASSED |
-| 2 | {step description} | ❌ FAILED |
-| 3 | {step description} | 🔴 BLOCKED |
+{one <details> block per step — see Step Detail Block Format below}
 ```
 
-If there are any FAILED or BLOCKED steps, append a details section:
+### Step Detail Block Format
 
+Every step gets a `<details>` block. The collapsed `<summary>` line shows status, description, and duration at a glance. Expanding reveals the action and, for non-passing steps, the failure reason.
+
+**PASSED step:**
 ```markdown
----
+<details>
+<summary>Step {N} — ✅ {step description} ({duration}s)</summary>
 
-### Failed / Blocked Steps
+**Action:** {action sentence}
+**Duration:** {duration}s
 
-**Step {N} — {step description}**
-Reason: {what went wrong, after 3 retries}
-Screenshot: {captured at point of failure / not available}
-
-**Step {N} — {step description}**
-Reason: {what went wrong}
-Screenshot: {captured at point of failure / not available}
+</details>
 ```
+
+**FAILED step:**
+```markdown
+<details>
+<summary>Step {N} — ❌ {step description} ({duration}s)</summary>
+
+**Action:** {action sentence}
+**Duration:** {duration}s
+**Reason:** {what went wrong}
+
+</details>
+```
+
+**BLOCKED step:**
+```markdown
+<details>
+<summary>Step {N} — 🔴 {step description} ({duration}s)</summary>
+
+**Action:** {action sentence}
+**Duration:** {duration}s
+**Reason:** {what went wrong / Skipped — production URL, read-only mode}
+
+</details>
+```
+
+Duration is displayed in seconds rounded to one decimal place (e.g. `1.2s`). For BLOCKED steps with no duration (e.g. skipped due to PRODUCTION_WARNING), omit the duration from the summary and the Duration line.
 
 ---
 
@@ -103,7 +124,7 @@ If the tested URL appears to be a production domain, the report must include thi
 ⚠️ URL appears to be production. Executed read-only steps only.
 ```
 
-Steps that were skipped due to this restriction are listed in the table as `🔴 BLOCKED` with reason `Skipped — production URL, read-only mode`.
+Steps that were skipped due to this restriction are listed as `🔴 BLOCKED` with reason `Skipped — production URL, read-only mode`.
 
 ---
 
