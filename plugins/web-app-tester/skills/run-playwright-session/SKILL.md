@@ -1,6 +1,6 @@
 ---
 name: run-playwright-session
-description: Phase 2 of web-app-tester. Follows the Webwright workflow — writes an instrumented Python/Playwright script tailored to the test plan, executes it, reads the structured log to extract per-step results, and self-verifies failures against screenshots. Honours PRODUCTION_WARNING by embedding skip guards in the script. Always cleans up temp files. Outputs an inline list of per-step results.
+description: Phase 2 of web-app-tester. Follows the Webwright workflow — writes an instrumented Python/Playwright script tailored to the test plan, executes it, reads the structured log to extract per-step results, and self-verifies failures against screenshots. When IS_PRODUCTION=true, skips all data-modifying steps. Always cleans up temp files. Outputs an inline list of per-step results.
 disable-model-invocation: true
 ---
 
@@ -13,7 +13,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | Variable | Source | Description |
 |---|---|---|
 | `TEST_URL` | gather-test-context | URL to test against |
-| `PRODUCTION_WARNING` | gather-test-context | If `true`, skip any data-modifying step |
+| `IS_PRODUCTION` | orchestrator | If `true`, skip any data-modifying step |
 | `TEST_PLAN` | gather-test-context | Numbered/bulleted list of test steps |
 
 ## Outputs
@@ -130,7 +130,7 @@ The script must follow this contract:
 
 4. **Auth gate detection** — after the initial `page.goto()`, check if the page title or URL contains login/auth indicators. If detected and the test plan has no login steps, log all steps as `BLOCKED` with reason `Auth gate detected — no credentials provided` and exit early.
 
-5. **PRODUCTION_WARNING guard** — if `PRODUCTION_WARNING` is `true`, any step that submits a form or performs a data-modifying action must be skipped: log it as `BLOCKED` with reason `Skipped — production URL, read-only mode`.
+5. **Production guard** — if `IS_PRODUCTION` is `true`, any step that submits a form or performs a data-modifying action must be skipped: log it as `BLOCKED` with reason `Skipped — production environment, read-only mode`.
 
 6. **Browser config** — always use `p.chromium.launch(headless=True)` with `viewport={"width": 1280, "height": 1800}`. Never use `full_page=True` in screenshots.
 
@@ -140,7 +140,7 @@ The script must follow this contract:
 import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-PRODUCTION_WARNING = "${PRODUCTION_WARNING}" == "true"
+IS_PRODUCTION = "${IS_PRODUCTION}" == "true"
 LOG = open("_wat_run/log.txt", "w")
 
 def log_step(n, status, desc, reason=""):
@@ -184,9 +184,9 @@ with sync_playwright() as p:
         page.screenshot(path="_wat_run/screenshots/step_1_fail.png")
         log_step(1, "BLOCKED", "Click Submit button", str(e))
 
-    # Example step: fill (PRODUCTION_WARNING guard)
-    if PRODUCTION_WARNING:
-        log_step(2, "BLOCKED", "Fill contact form", "Skipped — production URL, read-only mode")
+    # Example step: fill (production guard)
+    if IS_PRODUCTION:
+        log_step(2, "BLOCKED", "Fill contact form", "Skipped — production environment, read-only mode")
     else:
         try:
             page.get_by_label("Email").fill("test@example.com", timeout=10000)
@@ -240,4 +240,4 @@ GitHub PR/issue comments do not support file attachments via `gh comment`, so th
 
 ## Completion
 
-When this skill finishes, hand off to `skills/post-test-report/SKILL.md` with the inline result list, `TEST_URL`, and `PRODUCTION_WARNING` in scope.
+When this skill finishes, hand off to `skills/post-test-report/SKILL.md` with the inline result list, `TEST_URL`, and `IS_PRODUCTION` in scope.
