@@ -1,0 +1,25 @@
+{
+  "widget": {
+    "trigger_hint": "AI Assistant button in the top right corner of the page",
+    "ready_hint": "input field shows placeholder text 'Type your question...'",
+    "response_done_hint": "Thinking ... text is gone and send button becomes clickable again after being disabled"
+  },
+  "credentials": {
+    "username_env": "CHATBOT_TEST_USER",
+    "password_env": "CHATBOT_TEST_PASS"
+  },
+  "knowledge": [
+    {
+      "question": "What is the size of MAUI brewing facility",
+      "must_contain": ["85000", "5800", "30 vessels", "170,500 gallons", "5,500 barrels", "cold box"]
+    },
+    {
+      "question": "Where is MAUI Located",
+      "must_contain": ["Ka'anapali, Maui", "Kailua, Oahu " , "Waikiki, Oahu" ]
+    },
+    {
+      "question": "How do I contact support?",
+      "must_contain": ["email", "support"]
+    }
+  ]
+}

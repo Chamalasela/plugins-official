@@ -5,8 +5,8 @@
     "response_done_hint": "send button becomes clickable again after being disabled"
   },
   "credentials": {
-    "username_env": "TEST_USER",
-    "password_env": "TEST_PASS"
+    "username_env": "CHATBOT_TEST_USER",
+    "password_env": "CHATBOT_TEST_PASS"
   },
   "knowledge": [
     {
