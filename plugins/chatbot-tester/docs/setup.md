@@ -72,6 +72,7 @@ Add a `chatbot-test` fenced code block to a **GitHub issue** or **Azure DevOps w
 ### Widget Block (required)
 
 Describe the chatbot widget in plain language. The plugin translates these hints into Playwright selectors on each run.
+Describe the chatbot widget in plain language. The plugin translates these hints into Playwright selectors on each run.
 
 ```json
 "widget": {
@@ -89,6 +90,7 @@ Describe the chatbot widget in plain language. The plugin translates these hints
 ### Credentials Block (optional)
 
 If the chatbot requires login, add the username and a reference to the secret key holding the password.
+If the chatbot requires login, add the username and a reference to the secret key holding the password.
 
 ```json
 "credentials": {
@@ -98,9 +100,12 @@ If the chatbot requires login, add the username and a reference to the secret ke
 ```
 
 `username` is the literal login email. `password_env` is the name of the Xianix Agentri Studio Secret key — never put the password value here.
+`username` is the literal login email. `password_env` is the name of the Xianix Agentri Studio Secret key — never put the password value here.
 
 ### Knowledge Block (optional)
+### Knowledge Block (optional)
 
+Define Q&A pairs the chatbot should answer correctly.
 Define Q&A pairs the chatbot should answer correctly.
 
 ```json
@@ -117,21 +122,27 @@ Define Q&A pairs the chatbot should answer correctly.
 ```
 
 Without a `knowledge` block, Functional Accuracy is skipped.
+Without a `knowledge` block, Functional Accuracy is skipped.
 
 ---
 
 ## Running the Plugin
 
 **Against a GitHub issue (full test):**
+**Against a GitHub issue (full test):**
 ```
+/test-chatbot https://github.com/owner/repo/issues/42
 /test-chatbot https://github.com/owner/repo/issues/42
 ```
 
 **Against an Azure DevOps work item (full test):**
+**Against an Azure DevOps work item (full test):**
 ```
+/test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234
 /test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234
 ```
 
+**Against a direct URL (lite mode — UI tests only):**
 **Against a direct URL (lite mode — UI tests only):**
 ```
 /test-chatbot https://staging.example.com
@@ -145,6 +156,8 @@ Without a `knowledge` block, Functional Accuracy is skipped.
 |---|---|
 | GitHub issue | Comment posted on the issue |
 | Azure DevOps work item | Comment posted on the work item |
+| GitHub issue | Comment posted on the issue |
+| Azure DevOps work item | Comment posted on the work item |
 | Direct URL | `chatbot-test-report.md` written in current directory |
 
 ---
@@ -153,7 +166,11 @@ Without a `knowledge` block, Functional Accuracy is skipped.
 
 **BLOCKED: no chatbot-test block found**
 → Add a `chatbot-test` fenced code block to the issue/work item body. See the template above.
+**BLOCKED: no chatbot-test block found**
+→ Add a `chatbot-test` fenced code block to the issue/work item body. See the template above.
 
+**BLOCKED: missing required fields**
+→ The block was found but `url`, `widget.trigger_hint`, `widget.ready_hint`, or `widget.response_done_hint` is missing. Add the missing fields.
 **BLOCKED: missing required fields**
 → The block was found but `url`, `widget.trigger_hint`, `widget.ready_hint`, or `widget.response_done_hint` is missing. Add the missing fields.
 
@@ -162,6 +179,9 @@ Without a `knowledge` block, Functional Accuracy is skipped.
 
 **BLOCKED: response timeout (30s)**
 → Your chatbot takes longer than 30 seconds to respond. Check if the app is running correctly.
+→ Your chatbot takes longer than 30 seconds to respond. Check if the app is running correctly.
 
+**Widget not found**
+→ Review your `trigger_hint`. Be more specific about the element's visual appearance and position on the page.
 **Widget not found**
 → Review your `trigger_hint`. Be more specific about the element's visual appearance and position on the page.
