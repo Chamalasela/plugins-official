@@ -31,6 +31,23 @@ After the summary table, append one section per category that has detail to show
 
 ---
 
+## Lite Mode Callout
+
+Include this section immediately after the summary table when `LITE_MODE=true`:
+
+```markdown
+---
+
+> ℹ️ **Partial test only** — Functional Accuracy was skipped because no test case was provided.
+> To run a full test, create a GitHub issue or Azure DevOps work item with a `chatbot-test` block and re-run:
+> ```
+> /test-chatbot https://github.com/owner/repo/issues/<n>
+> /test-chatbot https://dev.azure.com/org/project/_workitems/edit/<id>
+> ```
+```
+
+---
+
 ## Functional Accuracy Section
 
 Always include this section regardless of verdict. Show every Q&A pair as a collapsible block.

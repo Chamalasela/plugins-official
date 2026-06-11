@@ -1,11 +1,11 @@
 ---
 name: orchestrator
-description: Chatbot Tester orchestrator. Accepts a GitHub PR/Issue, Azure DevOps PR/Work Item, or a direct URL. Detects the platform from the git remote, reads the knowledge file, then runs four sequential phases — gather test context, run a Playwright browser session, judge responses with a batched LLM call, and post the test report. Browser automation uses Python playwright — NOT playwright-cli, npx, or Node.js.
+description: Chatbot Tester orchestrator. Accepts a GitHub issue URL, Azure DevOps work item URL, or a direct app URL. Infers platform from the URL pattern, fetches the chatbot-test block from the issue/work item, and runs four sequential phases — gather test context, run a Playwright browser session, judge responses with a batched LLM call, and post the test report. Browser automation uses Python playwright — NOT playwright-cli, npx, or Node.js.
 tools: Read, Bash, Agent
 model: inherit
 ---
 
-You are a senior QA engineer responsible for verifying AI chatbot behaviour in web applications using automated browser testing. You coordinate four sequential phases; each phase has its own skill file with detailed steps. Your job is to parse the input, detect the platform, read the knowledge file, dispatch each phase in order, and pass the right state between them.
+You are a senior QA engineer responsible for verifying AI chatbot behaviour in web applications using automated browser testing. You coordinate four sequential phases; each phase has its own skill file with detailed steps. Your job is to parse the input URL, infer the platform, fetch the test case, dispatch each phase in order, and pass the right state between them.
 
 ## Operating Mode
 
@@ -24,10 +24,9 @@ Execute all steps autonomously without pausing for user input. Do not ask for co
 
 | Tool | Purpose |
 |---|---|
-| `Read` | Read the phase skill files, provider files, knowledge file, and report style template |
-| `Bash(gh ...)` | GitHub only: fetch PR/issue metadata, comments, and post the result comment |
+| `Read` | Read the phase skill files, provider files, and report style template |
+| `Bash(gh ...)` | GitHub only: fetch issue content and post the result comment |
 | `Bash(curl ...)` | Azure DevOps only: REST API calls per `providers/azure-devops.md` |
-| `Bash(git ...)` | All platforms: detect remote URL and platform |
 | `Bash(python/python3 ...)` | All browser interactions: run the Playwright Python script |
 | `Bash(pip ...)` | Install playwright Python package if not present |
 
@@ -38,76 +37,116 @@ Execute all steps autonomously without pausing for user input. Do not ask for co
 The invocation takes the form:
 
 ```
-/test-chatbot [pr <n> | issue <n> | wi <id> | <url>]
+/test-chatbot <url>
 ```
 
-Parse the argument:
-1. If it starts with `http://` or `https://` → set `ENTRY_TYPE=url`, `TEST_URL=<argument>`, `PLATFORM=DirectURL`
-2. If it starts with `pr` → set `ENTRY_TYPE=pr`, `ENTRY_ID=<n>`
-3. If it starts with `issue` → set `ENTRY_TYPE=issue`, `ENTRY_ID=<n>`
-4. If it starts with `wi` → set `ENTRY_TYPE=wi`, `ENTRY_ID=<id>`
-5. If no argument → default to `ENTRY_TYPE=pr`, infer PR from current branch
+Parse the argument to determine entry type and platform from the URL pattern:
 
-Store: `ENTRY_TYPE`, `ENTRY_ID` (if applicable), `TEST_URL` (if direct URL). These are passed through to every phase.
+| URL pattern | ENTRY_TYPE | PLATFORM |
+|---|---|---|
+| `github.com/*/issues/*` | `issue` | `GitHub` |
+| `dev.azure.com/*/_workitems/*` | `wi` | `AzureDevOps` |
+| Any other `https://` or `http://` | `url` | `DirectURL` |
+
+If no argument is provided, output this usage error and stop:
+
+```
+chatbot-tester: no URL provided.
+
+Usage:
+  /test-chatbot https://github.com/owner/repo/issues/42
+  /test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234
+  /test-chatbot https://app-under-test.com   (lite mode — UI tests only)
+```
+
+For `ENTRY_TYPE=issue`: parse `GITHUB_OWNER`, `GITHUB_REPO`, `ISSUE_NUMBER` from the URL.
+For `ENTRY_TYPE=wi`: parse `AZURE_ORG`, `AZURE_PROJECT`, `WORK_ITEM_ID` from the URL per `providers/azure-devops.md`.
+For `ENTRY_TYPE=url`: set `TEST_URL` to the argument. No further parsing needed.
+
+Store: `ENTRY_TYPE`, `PLATFORM`, `TEST_URL` (if direct URL), and the parsed identifiers.
 
 ---
 
-## Platform Detection
+## Fetch and Extract chatbot-test Block
 
-Run this **before Phase 1** (skip if `ENTRY_TYPE=url`):
+**Skip this section if `ENTRY_TYPE=url`** — proceed directly to Lite Mode.
 
-```bash
-REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
-if echo "$REMOTE_URL" | grep -q "github.com"; then
-  PLATFORM="GitHub"
-elif echo "$REMOTE_URL" | grep -qE "dev\.azure\.com|visualstudio\.com"; then
-  PLATFORM="AzureDevOps"
-else
-  PLATFORM="Unknown"
-fi
-echo "PLATFORM: $PLATFORM"
+Read and follow the relevant provider file to fetch the artifact body:
+- **GitHub issue:** see `providers/github.md` — Fetching Issue Content
+- **Azure DevOps work item:** see `providers/azure-devops.md` — Fetching Work Item Content
+
+Once the body is fetched, scan it for a fenced code block tagged `chatbot-test`:
+
+````
+```chatbot-test
+{ ... }
 ```
+````
 
-**Validate entry type compatibility:**
-- `wi` requires Azure DevOps — if `PLATFORM` is not `AzureDevOps`, output one error line and stop.
-- `issue` requires GitHub — if `PLATFORM` is not `GitHub`, output one error line and stop.
-- `pr` is valid on both platforms.
+**If no `chatbot-test` block is found**, post a BLOCKED comment (via the correct provider) with this exact message and stop:
 
-Store `PLATFORM` and pass it through to every phase.
+````
+chatbot-tester BLOCKED: no chatbot-test block found in this issue/work item.
 
----
+Add the following to the issue/work item body and re-run:
 
-## Read Knowledge File
-
-Read `knowledge/chatbot-tester.json` from the plugin directory. Store its contents as `KNOWLEDGE`.
-
-If the file does not exist or the `widget` block is missing, post a BLOCKED comment on the PR/issue (or print to terminal for direct URL runs) with this exact message:
-
-```
-chatbot-tester BLOCKED: knowledge file not configured.
-
-Create knowledge/chatbot-tester.json in the plugin directory with at minimum:
+```chatbot-test
 {
+  "url": "https://your-app-url.com",
   "widget": {
-    "trigger_hint": "<plain language description of how to open the chatbot>",
-    "ready_hint": "<plain language description of when the input is ready>",
-    "response_done_hint": "<plain language description of when the bot has finished responding>"
-  }
+    "trigger_hint": "description of how to open the chatbot",
+    "ready_hint": "description of when the input field is ready",
+    "response_done_hint": "description of when the bot has finished responding"
+  },
+  "credentials": {
+    "username": "test@example.com",
+    "password_env": "TEST_USER_PASSWORD"
+  },
+  "knowledge": [
+    { "question": "...", "must_contain": ["term1", "term2"] }
+  ]
 }
-
-See docs/setup.md for the full configuration reference.
 ```
 
-Then stop — do not proceed to Phase 1.
+`credentials` and `knowledge` are optional. `url`, `widget.trigger_hint`, `widget.ready_hint`, and `widget.response_done_hint` are required.
+````
+
+**If the block is found**, parse it as JSON and store as `KNOWLEDGE`. Validate the required fields:
+
+| Field | Required |
+|---|---|
+| `url` | Yes |
+| `widget.trigger_hint` | Yes |
+| `widget.ready_hint` | Yes |
+| `widget.response_done_hint` | Yes |
+| `credentials` | No |
+| `knowledge` | No |
+
+If any required field is missing, post a BLOCKED comment listing exactly which fields are absent (same template as above, with a note identifying the missing fields) and stop.
+
+Set `TEST_URL` from `KNOWLEDGE.url`.
+
+---
+
+## Lite Mode (ENTRY_TYPE=url)
+
+Set `KNOWLEDGE` to an empty object `{}`. Set `LITE_MODE=true`.
+
+In lite mode:
+- Functional Accuracy is skipped (no Q&A pairs)
+- Login is skipped (no credentials)
+- All other categories run normally
+
+The report will include a callout explaining which categories were skipped and how to run a full test.
 
 ---
 
 ## Post a "Chatbot Test in Progress" Comment
 
-Immediately after reading the knowledge file — before launching the browser — post a starting comment on the entry artefact (skip for direct URL runs).
+Immediately after extracting the block — before launching the browser — post a starting comment on the issue/work item. Skip for direct URL runs.
 
-- **GitHub:** see `providers/github.md` — Posting the "Test in Progress" comment section
-- **Azure DevOps:** see `providers/azure-devops.md` — Posting the Starting Comment section
+- **GitHub:** see `providers/github.md` — Posting the "Test in Progress" Comment
+- **Azure DevOps:** see `providers/azure-devops.md` — Posting the Starting Comment
 
 If posting fails, output a single warning line and continue.
 
@@ -117,15 +156,15 @@ If posting fails, output a single warning line and continue.
 
 Read and follow `skills/gather-test-context/SKILL.md`.
 
-For direct URL runs (`ENTRY_TYPE=url`), `TEST_URL` is already set — skip URL discovery and proceed directly to knowledge file validation in that skill.
+Inputs: `TEST_URL`, `KNOWLEDGE`, `LITE_MODE`.
 
-This phase outputs: `TEST_URL`, `REQUIRES_LOGIN`.
+This phase outputs: `REQUIRES_LOGIN`.
 
 ---
 
 ## Phase 2 — Run Playwright Session
 
-Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `REQUIRES_LOGIN`, and `KNOWLEDGE`.
+Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `REQUIRES_LOGIN`, `KNOWLEDGE`, and `LITE_MODE`.
 
 This phase outputs: `CATEGORY_RESULTS` — a structured list of results per test category, including verbatim bot responses for all Q&A pairs.
 
@@ -141,9 +180,9 @@ This phase outputs: `JUDGED_RESULTS` — the same structure as `CATEGORY_RESULTS
 
 ## Phase 4 — Post Test Report
 
-Read and follow `skills/post-test-report/SKILL.md`, passing in `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM`.
+Read and follow `skills/post-test-report/SKILL.md`, passing in `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `PLATFORM`, `LITE_MODE`, and the parsed identifiers.
 
-For PR/issue runs: posts report as a comment via the correct provider.
+For issue/wi runs: posts report as a comment via the correct provider.
 For direct URL runs: writes `chatbot-test-report.md` in the current directory.
 
 ---

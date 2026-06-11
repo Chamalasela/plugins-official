@@ -1,6 +1,6 @@
 # Provider: GitHub
 
-Use this provider when `git remote get-url origin` contains `github.com`.
+Use this provider when `PLATFORM=GitHub` (URL matched `github.com/*/issues/*`).
 
 ## Prerequisites
 
@@ -18,24 +18,20 @@ If not authenticated, run `gh auth login` or set the `GITHUB_TOKEN` environment 
 |---|---|---|
 | **Metadata** | Read | Resolve repository owner and name |
 | **Issues** | Read & Write | Fetch issue body and comments; post result comment |
-| **Pull requests** | Read & Write | Fetch PR body and comments; post result comment |
 
 ---
 
-## Resolving Owner and Repo
+## Parsing the Issue URL
+
+Parse `GITHUB_OWNER`, `GITHUB_REPO`, and `ISSUE_NUMBER` from the input URL.
+
+URL format: `https://github.com/{owner}/{repo}/issues/{number}`
 
 ```bash
-REMOTE=$(git remote get-url origin)
-OWNER=$(echo "$REMOTE" | sed 's|https://github.com/||;s|git@github.com:||' | cut -d'/' -f1)
-REPO=$(echo "$REMOTE"  | sed 's|https://github.com/||;s|git@github.com:||' | cut -d'/' -f2 | sed 's|\.git$||')
-```
-
----
-
-## Fetching PR Content
-
-```bash
-gh pr view ${PR_NUMBER} --json number,title,body,state,url,author,comments
+ISSUE_URL="https://github.com/owner/repo/issues/42"
+GITHUB_OWNER=$(echo "$ISSUE_URL" | sed 's|https://github.com/||' | cut -d'/' -f1)
+GITHUB_REPO=$(echo "$ISSUE_URL"  | sed 's|https://github.com/||' | cut -d'/' -f2)
+ISSUE_NUMBER=$(echo "$ISSUE_URL" | sed 's|https://github.com/||' | cut -d'/' -f4)
 ```
 
 ---
@@ -43,26 +39,15 @@ gh pr view ${PR_NUMBER} --json number,title,body,state,url,author,comments
 ## Fetching Issue Content
 
 ```bash
-gh issue view ${ISSUE_NUMBER} --json number,title,body,state,labels,comments
+gh issue view ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --json number,title,body,state,labels,comments
 ```
 
 ---
 
 ## Posting the "Test in Progress" Comment
 
-**PR:**
 ```bash
-gh pr comment ${PR_NUMBER} --body "$(cat <<'EOF'
-🤖 **Chatbot test in progress**
-
-I'm launching a browser session and running the chatbot test suite. The full report will be posted when complete — this may take a few minutes.
-EOF
-)"
-```
-
-**Issue:**
-```bash
-gh issue comment ${ISSUE_NUMBER} --body "$(cat <<'EOF'
+gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body "$(cat <<'EOF'
 🤖 **Chatbot test in progress**
 
 I'm launching a browser session and running the chatbot test suite. The full report will be posted when complete — this may take a few minutes.
@@ -72,18 +57,10 @@ EOF
 
 ---
 
-## Posting the "No URL Found" Comment
+## Posting a BLOCKED Comment
 
-**PR:**
 ```bash
-gh pr comment ${PR_NUMBER} --body "🤖 chatbot-tester could not run — no testable URL was found.
-Add a comment with the URL (e.g. App URL: https://staging.example.com) and re-trigger."
-```
-
-**Issue:**
-```bash
-gh issue comment ${ISSUE_NUMBER} --body "🤖 chatbot-tester could not run — no testable URL was found.
-Add a comment with the URL (e.g. App URL: https://staging.example.com) and re-trigger."
+gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body "${BLOCKED_MESSAGE}"
 ```
 
 ---
@@ -92,17 +69,8 @@ Add a comment with the URL (e.g. App URL: https://staging.example.com) and re-tr
 
 Construct the full report body following `styles/report-template.md`, then post it.
 
-**PR:**
 ```bash
-gh pr comment ${PR_NUMBER} --body "$(cat <<'EOF'
-${REPORT_BODY}
-EOF
-)"
-```
-
-**Issue:**
-```bash
-gh issue comment ${ISSUE_NUMBER} --body "$(cat <<'EOF'
+gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body "$(cat <<'EOF'
 ${REPORT_BODY}
 EOF
 )"

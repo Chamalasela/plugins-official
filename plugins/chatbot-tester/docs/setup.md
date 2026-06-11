@@ -19,7 +19,7 @@ playwright install chromium
 
 ### 3. Platform CLI
 
-**GitHub repos:**
+**GitHub issues:**
 ```bash
 # Install gh CLI
 brew install gh            # macOS
@@ -30,27 +30,48 @@ apt install gh             # Linux
 gh auth login
 ```
 
-**Azure DevOps repos:**
+**Azure DevOps work items:**
 ```bash
-# Set PAT with Work Items (Read/Write), Code (Read), Pull Requests (Read/Write)
+# Set PAT with Work Items (Read/Write) permissions
 export AZURE-DEVOPS-TOKEN=your_pat_here
 ```
 
+### 4. Test Password Secret
+
+Store the test account password in **Xianix Agentri Studio Secrets** with the key `TEST_USER_PASSWORD`. The plugin reads it at runtime via the env var name declared in the test case block.
+
 ---
 
-## Knowledge File
+## Creating a Test Case
 
-Copy the example file and fill in your values:
+Add a `chatbot-test` fenced code block to a **GitHub issue** or **Azure DevOps work item** body. The plugin reads it automatically — no local files needed.
 
-```bash
-cp knowledge/chatbot-tester.example.json knowledge/chatbot-tester.json
+````
+```chatbot-test
+{
+  "url": "https://your-app-url.com",
+  "widget": {
+    "trigger_hint": "description of how to open the chatbot",
+    "ready_hint": "description of when the input field is ready",
+    "response_done_hint": "description of when the bot has finished responding"
+  },
+  "credentials": {
+    "username": "test@example.com",
+    "password_env": "TEST_USER_PASSWORD"
+  },
+  "knowledge": [
+    {
+      "question": "What are your opening hours?",
+      "must_contain": ["9am", "5pm", "Monday"]
+    }
+  ]
+}
 ```
-
-Then edit `knowledge/chatbot-tester.json`:
+````
 
 ### Widget Block (required)
 
-Describe the chatbot widget in plain language. The plugin will translate these hints into Playwright selectors automatically on the first run and cache them.
+Describe the chatbot widget in plain language. The plugin translates these hints into Playwright selectors on each run.
 
 ```json
 "widget": {
@@ -65,30 +86,22 @@ Describe the chatbot widget in plain language. The plugin will translate these h
 - Describe state changes: "becomes clickable", "placeholder disappears", "spinner stops"
 - Be specific about location: "bottom right corner", "left sidebar", "top of the page"
 
-The translated selectors are cached in `widget._cached_selectors` after the first run — subsequent runs skip the translation step entirely.
-
 ### Credentials Block (optional)
 
-If the chatbot requires login to access, add credentials. Use environment variable names, not raw values.
+If the chatbot requires login, add the username and a reference to the secret key holding the password.
 
 ```json
 "credentials": {
-  "username_env": "TEST_USER",
-  "password_env": "TEST_PASS"
+  "username": "test@example.com",
+  "password_env": "TEST_USER_PASSWORD"
 }
 ```
 
-Then set the env vars before running:
-```bash
-export TEST_USER=testuser@example.com
-export TEST_PASS=your_test_password
-```
+`username` is the literal login email. `password_env` is the name of the Xianix Agentri Studio Secret key — never put the password value here.
 
-The plugin attempts a generic form-based login. If your app uses SSO or OAuth, the login step will be marked BLOCKED with instructions.
+### Knowledge Block (optional)
 
-### Knowledge Block (optional but recommended)
-
-Define Q&A pairs the chatbot should answer correctly. Each pair has a question and a list of terms that must appear in the response.
+Define Q&A pairs the chatbot should answer correctly.
 
 ```json
 "knowledge": [
@@ -103,28 +116,23 @@ Define Q&A pairs the chatbot should answer correctly. Each pair has a question a
 ]
 ```
 
-Without a `knowledge` block, the Functional Accuracy category is skipped and marked N/A.
+Without a `knowledge` block, Functional Accuracy is skipped.
 
 ---
 
 ## Running the Plugin
 
-**Against a PR:**
+**Against a GitHub issue (full test):**
 ```
-/test-chatbot pr 42
-```
-
-**Against an issue:**
-```
-/test-chatbot issue 88
+/test-chatbot https://github.com/owner/repo/issues/42
 ```
 
-**Against an Azure DevOps work item:**
+**Against an Azure DevOps work item (full test):**
 ```
-/test-chatbot wi 1234
+/test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234
 ```
 
-**Against a direct URL (writes report locally):**
+**Against a direct URL (lite mode — UI tests only):**
 ```
 /test-chatbot https://staging.example.com
 ```
@@ -135,24 +143,25 @@ Without a `knowledge` block, the Functional Accuracy category is skipped and mar
 
 | Trigger | Report destination |
 |---|---|
-| PR/Issue/Work Item | Comment posted on the PR/issue |
+| GitHub issue | Comment posted on the issue |
+| Azure DevOps work item | Comment posted on the work item |
 | Direct URL | `chatbot-test-report.md` written in current directory |
 
 ---
 
 ## Troubleshooting
 
-**BLOCKED: knowledge file not configured**
-→ Create `knowledge/chatbot-tester.json` from the example file.
+**BLOCKED: no chatbot-test block found**
+→ Add a `chatbot-test` fenced code block to the issue/work item body. See the template above.
 
-**BLOCKED: widget hints missing**
-→ Add a `widget` block to your knowledge file with `trigger_hint`, `ready_hint`, and `response_done_hint`.
+**BLOCKED: missing required fields**
+→ The block was found but `url`, `widget.trigger_hint`, `widget.ready_hint`, or `widget.response_done_hint` is missing. Add the missing fields.
 
 **BLOCKED: generic login failed**
-→ Verify `TEST_USER` and `TEST_PASS` env vars are set. If your app uses SSO, the generic login approach is not supported in v1.
+→ Verify `TEST_USER_PASSWORD` is set in Xianix Agentri Studio Secrets and matches the `password_env` value in your test case. If your app uses SSO or OAuth, the generic login approach is not supported in v2.
 
 **BLOCKED: response timeout (30s)**
-→ Your chatbot takes longer than 30 seconds to respond. Check if the app is running correctly. Consider simplifying your Q&A pairs for the test environment.
+→ Your chatbot takes longer than 30 seconds to respond. Check if the app is running correctly.
 
-**Selectors not working after UI update**
-→ Delete the `widget._cached_selectors` block from your knowledge file. The plugin will re-translate the plain language hints on the next run.
+**Widget not found**
+→ Review your `trigger_hint`. Be more specific about the element's visual appearance and position on the page.
