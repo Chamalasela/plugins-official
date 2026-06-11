@@ -1,7 +1,7 @@
 ---
 name: test-chatbot
-description: Verify AI chatbot behaviour in a web application. Loads widget configuration from the plugin knowledge file, opens the chatbot via Playwright (headless Chromium), runs six test categories, judges Q&A accuracy with a batched LLM call, and posts a structured report. Usage: /test-chatbot [pr <n> | issue <n> | wi <id> | <url>]
-argument-hint: [pr <n> | issue <n> | wi <id> | <url>]
+description: Verify AI chatbot behaviour in a web application. Reads widget configuration and Q&A pairs from a chatbot-test block in a GitHub issue or Azure DevOps work item, opens the chatbot via Playwright (headless Chromium), runs six test categories, judges Q&A accuracy with a batched LLM call, and posts a structured report. Usage: /test-chatbot <url>
+argument-hint: <github-issue-url | azure-devops-wi-url | app-url>
 ---
 
 Run automated AI chatbot verification for $ARGUMENTS.
@@ -10,47 +10,48 @@ Run automated AI chatbot verification for $ARGUMENTS.
 
 Invokes the **orchestrator** agent to:
 
-1. Resolve the target URL — from a PR/issue/work item or directly from the argument
-2. Read the knowledge file (`knowledge/chatbot-tester.json`) for widget hints, credentials, and Q&A pairs
+1. Parse the input URL to determine entry type (GitHub issue, Azure DevOps work item, or direct app URL)
+2. Fetch the issue/work item and extract the `chatbot-test` JSON block for widget hints, credentials, and Q&A pairs
 3. Open the web application in a headless Chromium browser and locate the chatbot widget
 4. Run six test categories against the chatbot
 5. Judge Q&A pair responses with a single batched LLM call
-6. Post a structured report as a PR/issue comment, or write `chatbot-test-report.md` for direct URL runs
+6. Post a structured report as an issue/work item comment, or write `chatbot-test-report.md` for direct URL runs
 
 ## Entry Points
 
 | Entry Point | Example | What the agent does |
 |---|---|---|
-| **PR number** | `/test-chatbot pr 42` | Fetches PR content, scans for staging URL, runs chatbot tests |
-| **Issue number** | `/test-chatbot issue 88` | Fetches issue content, scans for staging URL, runs chatbot tests |
-| **Work item ID** | `/test-chatbot wi 1234` | Fetches Azure DevOps work item, scans for URL, runs chatbot tests |
-| **Direct URL** | `/test-chatbot https://staging.example.com` | Uses URL directly, writes report to local markdown file |
+| **GitHub issue URL** | `/test-chatbot https://github.com/owner/repo/issues/42` | Fetches issue body, extracts `chatbot-test` block, runs full test |
+| **Azure DevOps work item URL** | `/test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234` | Fetches work item body, extracts `chatbot-test` block, runs full test |
+| **Direct app URL** | `/test-chatbot https://staging.example.com` | Lite mode — runs UI and fallback tests only, writes report locally |
 
 ## Test Categories
 
-| Category | What is tested |
-|---|---|
-| **UI Availability** | Widget loads, trigger button works, input field is interactable |
-| **Functional Accuracy** | Q&A pairs from knowledge file — bot answers judged by LLM |
-| **Fallback Handling** | Gibberish and out-of-scope inputs — bot responds gracefully without crashing |
-| **Response Latency** | Time from message sent to response complete |
-| **Conversation Continuity** | Follow-up question retains context from previous response |
-| **Empty Input Handling** | Blank message submission handled gracefully |
+| Category | Full test | Lite mode |
+|---|---|---|
+| **UI Availability** | Widget loads, trigger button works, input field is interactable | Same |
+| **Functional Accuracy** | Q&A pairs from test block — bot answers judged by LLM | Skipped |
+| **Fallback Handling** | Gibberish and out-of-scope inputs — bot responds gracefully | Same |
+| **Response Latency** | Time from message sent to response complete | Same |
+| **Conversation Continuity** | Follow-up question retains context from previous response | Same |
+| **Empty Input Handling** | Blank message submission handled gracefully | Same |
 
-## Knowledge File
+## Test Case Block
 
-The plugin reads `knowledge/chatbot-tester.json` from the plugin directory. This file must exist before running.
+Add this block to a GitHub issue or Azure DevOps work item body. The agent reads it automatically.
 
-```json
+````
+```chatbot-test
 {
+  "url": "https://your-app-url.com",
   "widget": {
-    "trigger_hint": "blue chat button in the bottom right corner",
-    "ready_hint": "input field shows placeholder text 'Type your question...'",
-    "response_done_hint": "send button becomes clickable again"
+    "trigger_hint": "description of how to open the chatbot",
+    "ready_hint": "description of when the input field is ready",
+    "response_done_hint": "description of when the bot has finished responding"
   },
   "credentials": {
-    "username_env": "TEST_USER",
-    "password_env": "TEST_PASS"
+    "username": "test@example.com",
+    "password_env": "CHATBOT-TEST-PASSWORD"
   },
   "knowledge": [
     {
@@ -60,8 +61,13 @@ The plugin reads `knowledge/chatbot-tester.json` from the plugin directory. This
   ]
 }
 ```
+````
 
-Copy `knowledge/chatbot-tester.example.json` to `knowledge/chatbot-tester.json` and fill in your values. See `docs/setup.md` for full configuration reference.
+`credentials` and `knowledge` are optional. See `docs/setup.md` for the full reference.
+
+## Credentials
+
+The `password_env` field references a secret key stored in Xianix Agentri Studio Secrets. The password value is never written to the test case — only the key name is referenced.
 
 ## Verdict Logic
 
@@ -75,10 +81,9 @@ Copy `knowledge/chatbot-tester.example.json` to `knowledge/chatbot-tester.json` 
 
 - Python 3.10+ available (`python3 --version`)
 - `playwright` Python package installed (`pip install playwright && playwright install chromium`)
-- Knowledge file configured at `knowledge/chatbot-tester.json`
-- **GitHub repos:** `gh` CLI installed and authenticated
-- **Azure DevOps repos:** `curl` available and `AZURE-DEVOPS-TOKEN` set
-- **Login required:** `TEST_USER` and `TEST_PASS` env vars set if credentials declared in knowledge file
+- **GitHub issues:** `gh` CLI installed and authenticated
+- **Azure DevOps work items:** `curl` available and `AZURE-DEVOPS-TOKEN` set
+- **Login required:** password stored as `CHATBOT-TEST-PASSWORD` in Xianix Agentri Studio Secrets
 
 ---
 

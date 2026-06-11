@@ -26,36 +26,8 @@ if ! python3 -c "import playwright" > /dev/null 2>&1; then
     exit 0
 fi
 
-# Check knowledge file exists
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
-KNOWLEDGE_FILE="${PLUGIN_ROOT}/knowledge/chatbot-tester.json"
-if [ ! -f "$KNOWLEDGE_FILE" ]; then
-    echo "{\"decision\": \"block\", \"reason\": \"Knowledge file not found at ${KNOWLEDGE_FILE}. Copy knowledge/chatbot-tester.example.json to knowledge/chatbot-tester.json and fill in your widget hints and Q&A pairs — see docs/setup.md\"}"
-    exit 0
-fi
-
-# Check widget block exists in knowledge file
-if ! python3 -c "import json,sys; d=json.load(open('${KNOWLEDGE_FILE}')); sys.exit(0 if 'widget' in d else 1)" 2>/dev/null; then
-    echo '{"decision": "block", "reason": "The knowledge file is missing a `widget` block. Add widget.trigger_hint, widget.ready_hint, and widget.response_done_hint in plain language — see docs/setup.md"}'
-    exit 0
-fi
-
-# Detect platform from git remote
-REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
-if echo "$REMOTE_URL" | grep -q "github.com"; then
-    PLATFORM="GitHub"
-elif echo "$REMOTE_URL" | grep -qE "dev\.azure\.com|visualstudio\.com"; then
-    PLATFORM="AzureDevOps"
-else
-    PLATFORM="Unknown"
-fi
-
-# --- GitHub platform checks ---
-if [ "$PLATFORM" = "GitHub" ]; then
-    if ! echo "$COMMAND" | grep -qE "^gh "; then
-        exit 0
-    fi
-
+# GitHub CLI checks — only when a gh command is about to run
+if echo "$COMMAND" | grep -qE "^gh "; then
     if ! command -v gh > /dev/null 2>&1; then
         echo '{"decision": "block", "reason": "GitHub CLI (gh) is not installed or not in PATH. Install it: brew install gh (macOS), winget install GitHub.cli (Windows), or apt install gh (Linux)."}'
         exit 0
@@ -69,19 +41,15 @@ if [ "$PLATFORM" = "GitHub" ]; then
     fi
 fi
 
-# --- Azure DevOps platform checks ---
-if [ "$PLATFORM" = "AzureDevOps" ]; then
-    if ! echo "$COMMAND" | grep -qE "^curl "; then
-        exit 0
-    fi
-
+# Azure DevOps checks — only when a curl command is about to run
+if echo "$COMMAND" | grep -qE "^curl "; then
     if ! command -v curl > /dev/null 2>&1; then
         echo '{"decision": "block", "reason": "curl is not installed or not in PATH. curl is required for Azure DevOps API calls."}'
         exit 0
     fi
 
     if [ -z "${AZURE-DEVOPS-TOKEN:-}" ]; then
-        echo '{"decision": "block", "reason": "AZURE-DEVOPS-TOKEN is not set. Create a Personal Access Token in Azure DevOps and export AZURE-DEVOPS-TOKEN=your_pat — see docs/setup.md"}'
+        echo '{"decision": "block", "reason": "AZURE-DEVOPS-TOKEN is not set. Create a Personal Access Token in Azure DevOps and set AZURE-DEVOPS-TOKEN=your_pat — see docs/setup.md"}'
         exit 0
     fi
 fi

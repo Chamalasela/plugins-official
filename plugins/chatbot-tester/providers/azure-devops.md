@@ -1,6 +1,6 @@
 # Provider: Azure DevOps
 
-Use this provider when `git remote get-url origin` contains `dev.azure.com` or `visualstudio.com`.
+Use this provider when `PLATFORM=AzureDevOps` (URL matched `dev.azure.com/*/_workitems/*`).
 
 ## Prerequisites
 
@@ -15,50 +15,21 @@ Required environment variable:
 | Permission | Access | Why it's needed |
 |---|---|---|
 | **Work Items** | Read & Write | Fetch work item content; post result comment |
-| **Code** | Read | Access PR metadata and threads |
-| **Pull Requests** | Read & Write | Fetch PR content; post test report as PR thread |
 
 ---
 
-## Parsing the Remote URL
+## Parsing the Work Item URL
 
-**HTTPS format:** `https://dev.azure.com/{org}/{project}/_git/{repo}`
+Parse `AZURE_ORG`, `AZURE_PROJECT`, and `WORK_ITEM_ID` from the input URL.
 
-```bash
-REMOTE=$(git remote get-url origin)
-AZURE_ORG=$(echo "$REMOTE"     | sed 's|https://dev.azure.com/||' | cut -d'/' -f1)
-AZURE_PROJECT=$(echo "$REMOTE" | sed 's|https://dev.azure.com/||' | cut -d'/' -f2)
-AZURE_REPO=$(echo "$REMOTE"    | sed 's|.*/_git/||' | sed 's|\.git$||')
-```
-
-**Legacy HTTPS format:** `https://{org}.visualstudio.com/{project}/_git/{repo}`
+URL format: `https://dev.azure.com/{org}/{project}/_workitems/edit/{id}`
 
 ```bash
-AZURE_ORG=$(echo "$REMOTE"     | sed 's|https://||' | cut -d'.' -f1)
-AZURE_PROJECT=$(echo "$REMOTE" | cut -d'/' -f4)
-AZURE_REPO=$(echo "$REMOTE"    | sed 's|.*/_git/||' | sed 's|\.git$||')
-```
-
-### API Base URL
-
-```bash
-if [[ "$REMOTE" =~ \.visualstudio\.com ]]; then
-  API_BASE="https://${AZURE_ORG}.visualstudio.com/${AZURE_PROJECT}"
-else
-  API_BASE="https://dev.azure.com/${AZURE_ORG}/${AZURE_PROJECT}"
-fi
-```
-
----
-
-## Fetching PR Content
-
-```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
-  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${PR_ID}?api-version=7.1"
-
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
-  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${PR_ID}/threads?api-version=7.1"
+WI_URL="https://dev.azure.com/myorg/myproject/_workitems/edit/1234"
+AZURE_ORG=$(echo "$WI_URL"      | sed 's|https://dev.azure.com/||' | cut -d'/' -f1)
+AZURE_PROJECT=$(echo "$WI_URL"  | sed 's|https://dev.azure.com/||' | cut -d'/' -f2)
+WORK_ITEM_ID=$(echo "$WI_URL"   | sed 's|.*/_workitems/edit/||' | cut -d'/' -f1 | cut -d'?' -f1)
+API_BASE="https://dev.azure.com/${AZURE_ORG}/${AZURE_PROJECT}"
 ```
 
 ---
@@ -77,18 +48,6 @@ curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
 
 ## Posting the Starting Comment
 
-**PR entry:**
-
-```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
-  -X POST \
-  -H "Content-Type: application/json" \
-  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${PR_ID}/threads?api-version=7.1" \
-  -d '{"comments":[{"content":"🤖 **Chatbot test in progress**\n\nLaunching a browser session and running the chatbot test suite. The full report will be posted when complete — this may take a few minutes.","commentType":1}],"status":"active","properties":{"Microsoft.TeamFoundation.Discussion.SupportsMarkdown":1}}'
-```
-
-**Work item entry:**
-
 ```bash
 curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
   -X POST \
@@ -99,48 +58,26 @@ curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
 
 ---
 
-## Posting the "No URL Found" Comment
+## Posting a BLOCKED Comment
 
-**PR entry:**
-```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
-  -X POST \
-  -H "Content-Type: application/json" \
-  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${PR_ID}/threads?api-version=7.1" \
-  -d '{"comments":[{"content":"🤖 chatbot-tester could not run — no testable URL was found.\nAdd a comment with the URL (e.g. `App URL: https://...`) and re-trigger.","commentType":1}],"status":"active","properties":{"Microsoft.TeamFoundation.Discussion.SupportsMarkdown":1}}'
-```
-
-**Work item entry:**
 ```bash
 curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
   -X POST \
   -H "Content-Type: application/json" \
   "${API_BASE}/_apis/wit/workitems/${WORK_ITEM_ID}/comments?format=markdown&api-version=7.1-preview.4" \
-  -d '{"text":"🤖 chatbot-tester could not run — no testable URL was found.\nAdd a comment with the URL (e.g. `App URL: https://...`) and re-trigger."}'
+  -d "$(python3 -c "
+import json, sys
+body = sys.stdin.read()
+print(json.dumps({'text': body}))
+" <<'BLOCKED'
+${BLOCKED_MESSAGE}
+BLOCKED
+)"
 ```
 
 ---
 
 ## Posting the Test Report
-
-### PR entry — post on the PR thread
-
-```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
-  -X POST \
-  -H "Content-Type: application/json" \
-  "${API_BASE}/_apis/git/repositories/${AZURE_REPO}/pullrequests/${PR_ID}/threads?api-version=7.1" \
-  -d "$(python3 -c "
-import json, sys
-body = sys.stdin.read()
-print(json.dumps({'comments':[{'content': body,'commentType':1}],'status':'active','properties':{'Microsoft.TeamFoundation.Discussion.SupportsMarkdown':1}}))
-" <<'REPORT'
-${REPORT_BODY}
-REPORT
-)"
-```
-
-### Work item entry — post on the work item
 
 ```bash
 curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
