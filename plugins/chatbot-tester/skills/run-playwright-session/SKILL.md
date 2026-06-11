@@ -85,8 +85,9 @@ Before opening the chatbot, attempt login using `username` (literal value) and t
 ```python
 import os
 
-username = "KNOWLEDGE.credentials.username"           # literal value from block
-password = os.environ.get("KNOWLEDGE.credentials.password_env", "")  # env var name from block
+username = KNOWLEDGE["credentials"]["username"]                          # literal value from block
+password_env_key = KNOWLEDGE["credentials"]["password_env"]             # e.g. "CHATBOT-TEST-PASSWORD"
+password = os.environ.get(password_env_key, "")
 
 page.goto(TEST_URL)
 try:
