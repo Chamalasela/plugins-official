@@ -46,7 +46,8 @@ Failed and blocked steps are retried up to 3 times before being marked final.
 
 ## Safety Rules
 
-- A production URL (no `staging`, `preview`, `dev`, `test`, `localhost` in the domain) triggers **read-only mode** — form submissions and destructive actions are skipped
+- The production URL check is **off by default** — all URLs are tested without restriction unless the environment is explicitly declared as production
+- Set `ENVIRONMENT=production` in `with-envs` in the Xianix Agent `rules.json` to enable the check. When active, a URL with no `staging`, `preview`, `dev`, `test`, or `localhost` indicator triggers **read-only mode** — form submissions and destructive actions are skipped. If `ENVIRONMENT` is not set, it is treated as non-production
 - Credentials and tokens are never included in posted comments
 - The browser session is always closed after the run
 

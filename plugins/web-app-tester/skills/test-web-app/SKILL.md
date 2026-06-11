@@ -22,7 +22,7 @@ The orchestrator runs three sequential phases, each backed by its own skill file
 1. **Gather test context** (`skills/gather-test-context/SKILL.md`)
    - Fetches PR/issue body, comments, commits, and linked issues
    - Scans content for a testable URL (preview, staging, deploy URL)
-   - Applies the production-URL safety check
+   - Applies the production-URL safety check (opt-in via `ENFORCE_PRODUCTION_CHECK` in `rules.json`)
    - Finds an existing test plan or auto-generates one
 
 2. **Run Playwright session** (`skills/run-playwright-session/SKILL.md`)

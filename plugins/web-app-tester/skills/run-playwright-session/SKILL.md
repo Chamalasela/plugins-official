@@ -14,7 +14,6 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 |---|---|---|
 | `TEST_URL` | gather-test-context | URL to test against |
 | `PRODUCTION_WARNING` | gather-test-context | If `true`, skip any data-modifying step |
-| `BYPASS_PRODUCTION_CHECK` | gather-test-context | `true` if the user explicitly bypassed the production safety check |
 | `TEST_PLAN` | gather-test-context | Numbered/bulleted list of test steps |
 
 ## Outputs
@@ -241,4 +240,4 @@ GitHub PR/issue comments do not support file attachments via `gh comment`, so th
 
 ## Completion
 
-When this skill finishes, hand off to `skills/post-test-report/SKILL.md` with the inline result list, `TEST_URL`, `PRODUCTION_WARNING`, `BYPASS_PRODUCTION_CHECK`, and `BYPASSED_BY` in scope.
+When this skill finishes, hand off to `skills/post-test-report/SKILL.md` with the inline result list, `TEST_URL`, and `PRODUCTION_WARNING` in scope.
