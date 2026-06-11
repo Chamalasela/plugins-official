@@ -15,6 +15,8 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | Inline result list | run-playwright-session | One entry per step: `{ n, desc, status, reason, screenshot }` |
 | `TEST_URL` | gather-test-context | URL that was tested |
 | `PRODUCTION_WARNING` | gather-test-context | Whether read-only mode was applied |
+| `BYPASS_PRODUCTION_CHECK` | gather-test-context | `true` if the production safety check was bypassed |
+| `BYPASSED_BY` | gather-test-context | Identity of the requester who triggered the bypass; empty string if bypass is not active |
 | `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
 | `ENTRY_ID` | orchestrator | PR number, issue number, or work item ID |
 | `PLATFORM` | orchestrator | `GitHub` or `AzureDevOps` |
@@ -51,7 +53,7 @@ The skeleton is:
 ```
 🤖 web-app-tester (Webwright) — Test Execution Report
 URL tested: {TEST_URL}
-{PRODUCTION_WARNING ? "⚠️ URL appears to be production. Executed read-only steps only." : ""}
+{BYPASS_PRODUCTION_CHECK ? "⚠️ Production URL tested. Safety check bypassed by {BYPASSED_BY}." : PRODUCTION_WARNING ? "⚠️ URL appears to be production. Executed read-only steps only." : ""}
 Total: N | ✅ Passed: X | ❌ Failed: Y | 🔴 Blocked: Z
 Overall: PASSED / FAILED / BLOCKED
 

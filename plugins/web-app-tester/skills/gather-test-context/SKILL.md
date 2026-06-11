@@ -15,13 +15,17 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
 | `ENTRY_ID` | orchestrator | The PR number, issue number, or work item ID |
 | `PLATFORM` | orchestrator | `GitHub` or `AzureDevOps` |
+| `BYPASS_PRODUCTION_CHECK` | orchestrator | `true` to skip the production URL safety check; otherwise `false` |
+| `BYPASSED_BY` | orchestrator | Identity of the requester who set `--bypass-production-check`; empty string if bypass is not active |
 
 ## Outputs
 
 | Variable | Description |
 |---|---|
 | `TEST_URL` | The URL the test plan will run against |
-| `PRODUCTION_WARNING` | `true` if the URL appears to be production; otherwise `false` |
+| `PRODUCTION_WARNING` | `true` if the URL appears to be production and bypass is not active; otherwise `false` |
+| `BYPASS_PRODUCTION_CHECK` | Passed through unchanged |
+| `BYPASSED_BY` | Passed through unchanged |
 | `TEST_PLAN` | Either an existing plan from the content or one auto-generated from context |
 | `LINKED_PR_ID` | Azure DevOps only, `wi` entry: the PR linked to the work item (used for posting the report) |
 
@@ -166,7 +170,9 @@ Store the found URL as `TEST_URL`.
 
 ## Step 3: Production URL Safety Check
 
-If `TEST_URL` does not contain any of the following substrings: `staging`, `preview`, `dev`, `test`, `pr-`, `localhost`, `127.0.0.1`, `.local`, a PR number, or an issue/work item number — set `PRODUCTION_WARNING=true`.
+If `BYPASS_PRODUCTION_CHECK` is `true`, set `PRODUCTION_WARNING=false` and skip to Step 4 — the production check is bypassed at the user's explicit request.
+
+Otherwise, if `TEST_URL` does not contain any of the following substrings: `staging`, `preview`, `dev`, `test`, `pr-`, `localhost`, `127.0.0.1`, `.local`, a PR number, or an issue/work item number — set `PRODUCTION_WARNING=true`.
 
 If `PRODUCTION_WARNING=true`, restrict execution to **read-only steps only**. Never submit forms, click destructive actions (delete, remove, reset), or trigger data-modifying operations.
 
@@ -223,4 +229,4 @@ Store the auto-generated plan as `TEST_PLAN`.
 
 ## Completion
 
-When this skill finishes successfully, hand off to `skills/run-playwright-session/SKILL.md` with `TEST_URL`, `PRODUCTION_WARNING`, `TEST_PLAN`, `PLATFORM`, `ENTRY_TYPE`, `ENTRY_ID`, and (if applicable) `LINKED_PR_ID` in scope.
+When this skill finishes successfully, hand off to `skills/run-playwright-session/SKILL.md` with `TEST_URL`, `PRODUCTION_WARNING`, `BYPASS_PRODUCTION_CHECK`, `BYPASSED_BY`, `TEST_PLAN`, `PLATFORM`, `ENTRY_TYPE`, `ENTRY_ID`, and (if applicable) `LINKED_PR_ID` in scope.
