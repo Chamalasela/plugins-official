@@ -109,7 +109,7 @@ The orchestrator runs three sequential phases, each backed by its own skill file
 |---|---|
 | ✅ PASSED | Step executed, expected outcome observed |
 | ❌ FAILED | Step executed, expected outcome NOT observed |
-| 🔴 BLOCKED | Step could not execute after 3 retries, or skipped due to production URL |
+| 🔴 BLOCKED | Step could not execute after 3 retries, or skipped due to production environment read-only mode |
 
 Overall result is **PASSED** when all steps pass, **FAILED** when steps fail but all were attempted, and **BLOCKED** when one or more steps could not execute.
 
@@ -129,7 +129,7 @@ The auto-generated plan is posted as a GitHub comment before execution begins.
 ## Safety Rules
 
 - **No URL found** → posts a comment and stops immediately
-- **Production URL** (no `staging`, `preview`, `dev`, `test`, `localhost`, or PR/issue number in domain) → read-only mode; form submissions and destructive actions are skipped and marked BLOCKED
+- **Production environment** — set `ENVIRONMENT=production` in the Xianix Agent `rules.json` `with-envs` to enable read-only mode; form submissions and destructive actions are skipped and marked BLOCKED. If `ENVIRONMENT` is not set, all steps execute without restriction
 - **Report is strictly bounded** — the posted comment contains only the defined results table and failure details; no suggested fixes, recommendations, or commentary are ever added
 - **Credentials** — never included in any posted comment
 - **Temp files** — always deleted after the run (`_wat_run/` working directory), even if execution fails
@@ -182,6 +182,7 @@ See [docs/setup.md](docs/setup.md) for full setup instructions.
 |---|---|---|---|
 | `GITHUB_TOKEN` | GitHub | Yes (if `gh auth login` not run) | Authenticate `gh` CLI for reading PRs/issues and posting comments |
 | `AZURE-DEVOPS-TOKEN` | Azure DevOps | Yes | PAT for Azure DevOps REST API — reading PRs/work items and posting comments |
+| `ENVIRONMENT` | All | No | Set to `production` to enable read-only mode — data-modifying steps are skipped. Omit or set to any other value to run all steps |
 
 ---
 
