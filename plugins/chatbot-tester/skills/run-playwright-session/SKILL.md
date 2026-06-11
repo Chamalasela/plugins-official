@@ -1,0 +1,224 @@
+---
+name: run-playwright-session
+description: Phase 2 of chatbot-tester. Opens the target URL in headless Chromium, logs in if required, translates plain language widget hints to Playwright selectors (then caches them), and runs six test categories against the chatbot. Outputs structured category results with verbatim bot responses for all Q&A pairs.
+disable-model-invocation: true
+---
+
+# Phase 2 — Run Playwright Session
+
+This skill is invoked by the **orchestrator** agent. It is not a standalone slash command.
+
+## Inputs
+
+| Variable | Source | Description |
+|---|---|---|
+| `TEST_URL` | Phase 1 | The URL to open in the browser |
+| `REQUIRES_LOGIN` | Phase 1 | `true` if login must be attempted before testing |
+| `KNOWLEDGE` | orchestrator | Parsed contents of `knowledge/chatbot-tester.json` |
+
+## Outputs
+
+`CATEGORY_RESULTS` — a structured list with one entry per test category:
+
+```
+{
+  category: string,
+  status: "PASSED" | "FAILED" | "BLOCKED",
+  detail: string,
+  qa_pairs: [                          // only present for Functional Accuracy category
+    { question, must_contain, actual_response, duration_ms }
+  ],
+  probe_results: [                     // for Fallback, Continuity, Empty Input categories
+    { probe, actual_response, duration_ms }
+  ]
+}
+```
+
+---
+
+## Step 1: Detect Python and Check Chromium
+
+```bash
+PYTHON=$(command -v python3 2>/dev/null || command -v python)
+$PYTHON -c "import playwright" 2>/dev/null || pip install playwright
+$PYTHON -m playwright install chromium --with-deps 2>/dev/null || $PYTHON -m playwright install chromium
+```
+
+---
+
+## Step 2: Translate Widget Hints
+
+Check `KNOWLEDGE.widget` for a `_cached_selectors` block written by a previous run:
+
+```json
+"_cached_selectors": {
+  "trigger": "#chat-button",
+  "ready": "input[placeholder='Type your question...']",
+  "response_done": "#send-button:not([disabled])"
+}
+```
+
+**If `_cached_selectors` exists:** use those selectors directly — skip LLM translation.
+
+**If no cached selectors:** run a short Playwright exploration script to capture the page's HTML structure, then use an LLM call to translate the three plain language hints into CSS selectors or XPath expressions:
+
+- `KNOWLEDGE.widget.trigger_hint` → `TRIGGER_SELECTOR`
+- `KNOWLEDGE.widget.ready_hint` → `READY_SELECTOR`
+- `KNOWLEDGE.widget.response_done_hint` → `RESPONSE_DONE_SELECTOR`
+
+After a successful test run, write the resolved selectors back into `knowledge/chatbot-tester.json` under `widget._cached_selectors` so they are reused on the next run.
+
+If translation fails for any hint, attempt the fallback heuristic chain:
+1. Send button re-enables: `button[type=submit]:not([disabled]), button.send:not([disabled])`
+2. Typing indicator disappears: `.typing-indicator, .chat-loading, [class*="typing"]`
+3. Input field re-enables: `input[type=text]:not([disabled]), textarea:not([disabled])`
+
+---
+
+## Step 3: Write and Execute Test Script
+
+Create directory `_cbt_run/` and write `_cbt_run/test_script.py`.
+
+The script must:
+- Use **sync Playwright API** (not async)
+- Open `TEST_URL` in headless Chromium
+- Use a 30-second timeout for all `wait_for_selector` calls
+- Log each result as a pipe-delimited line to `_cbt_run/log.txt`:
+  `CATEGORY_RESULT|{category}|{status}|{detail}|{duration_ms}`
+  `QA_RESULT|{index}|{question}|{actual_response}|{duration_ms}`
+  `PROBE_RESULT|{category}|{probe_label}|{actual_response}|{duration_ms}`
+- Capture a screenshot to `_cbt_run/screenshots/{category}_fail.png` on any failure
+- Always close the browser in a `finally` block
+
+### Login (if REQUIRES_LOGIN=true)
+
+Before opening the chatbot, attempt login:
+
+```python
+# Generic login attempt — detect username/password fields and submit
+page.goto(TEST_URL)
+try:
+    username_field = page.wait_for_selector(
+        'input[type=email], input[type=text][name*=user], input[name*=email], input[id*=user], input[id*=email]',
+        timeout=5000
+    )
+    password_field = page.wait_for_selector(
+        'input[type=password]',
+        timeout=5000
+    )
+    username_field.fill(os.environ.get('TEST_USER', ''))
+    password_field.fill(os.environ.get('TEST_PASS', ''))
+    page.keyboard.press('Enter')
+    page.wait_for_load_state('networkidle', timeout=10000)
+    log('CATEGORY_RESULT|login|PASSED|Generic login succeeded|' + str(duration))
+except Exception as e:
+    log('CATEGORY_RESULT|login|BLOCKED|Generic login failed: ' + str(e) + '|0')
+    # Continue — test categories that do not require auth may still pass
+```
+
+### Category 1: UI Availability
+
+```python
+# 1. Open the page and wait for it to load
+page.goto(TEST_URL)
+page.wait_for_load_state('networkidle')
+
+# 2. Find and click the trigger element
+trigger = page.wait_for_selector(TRIGGER_SELECTOR, timeout=30000)
+trigger.click()
+
+# 3. Wait for the input field to be ready
+page.wait_for_selector(READY_SELECTOR, timeout=30000)
+
+# Verdict: PASSED if all three steps succeed
+```
+
+### Category 2: Functional Accuracy
+
+For each Q&A pair in `KNOWLEDGE.knowledge`:
+
+```python
+start = time.time()
+# Type question into input
+input_field = page.wait_for_selector(READY_SELECTOR, timeout=30000)
+input_field.fill(question)
+page.keyboard.press('Enter')
+
+# Wait for response to complete
+page.wait_for_selector(RESPONSE_DONE_SELECTOR, timeout=30000)
+
+# Capture all visible text in the chat response area
+# Find the last bot message in the conversation
+response_text = page.locator('[class*="bot-message"], [class*="assistant"], [data-role="bot"]').last.inner_text()
+duration_ms = int((time.time() - start) * 1000)
+
+log(f'QA_RESULT|{index}|{question}|{response_text}|{duration_ms}')
+```
+
+### Category 3: Fallback / Error Handling
+
+Send two probes:
+1. `"asdfghjkl zxcvbnm qwerty"` — pure gibberish
+2. `"What is the capital of Mars?"` — out-of-scope question
+
+For each probe, capture the bot response and verify:
+- Response is non-empty
+- Response does not contain a raw exception, stack trace, or `500` / `error` indicators
+
+### Category 4: Response Latency
+
+Record `duration_ms` for each Q&A pair message send (already captured in Category 2). Compute the average. The category PASSes if all responses complete within 30 seconds. Log the average latency in `detail`.
+
+### Category 5: Conversation Continuity
+
+After Category 2 completes (at least one Q&A pair sent), send the probe:
+`"Can you tell me more about that?"`
+
+Verify:
+- Response is non-empty
+- Response does not say "I don't understand what you mean" or equivalent reset phrases
+
+### Category 6: Empty Input Handling
+
+```python
+input_field = page.wait_for_selector(READY_SELECTOR, timeout=30000)
+input_field.fill('')
+page.keyboard.press('Enter')
+# Wait briefly for any response
+page.wait_for_timeout(3000)
+# Verify: no crash, no empty error screen, page is still interactive
+```
+
+Verify the input field is still present and interactable after the empty submission.
+
+---
+
+## Step 4: Execute Script
+
+```bash
+$PYTHON _cbt_run/test_script.py 2>&1 | tee _cbt_run/execution.log
+```
+
+---
+
+## Step 5: Parse Log
+
+Read `_cbt_run/log.txt`. Parse each pipe-delimited line into the `CATEGORY_RESULTS` structure.
+
+For any FAILED or BLOCKED category, read the corresponding screenshot with the Read tool to self-verify the failure is genuine.
+
+---
+
+## Step 6: Clean Up
+
+```bash
+rm -rf _cbt_run/
+```
+
+Always run this step, even if the script failed.
+
+---
+
+## Completion
+
+Hand off to `skills/judge-responses/SKILL.md` with `CATEGORY_RESULTS` and `KNOWLEDGE` in scope.

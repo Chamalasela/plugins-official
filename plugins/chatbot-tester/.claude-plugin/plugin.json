@@ -1,0 +1,31 @@
+{
+  "name": "chatbot-tester",
+  "version": "1.0.0",
+  "description": "Automated AI chatbot verification for any web application. Loads widget configuration from a knowledge file, opens the chatbot via Playwright, runs six test categories (UI availability, functional accuracy, fallback handling, response latency, conversation continuity, empty input handling), judges Q&A responses with a batched LLM call, and posts a structured report as a PR/issue comment or local markdown file.",
+  "author": {
+    "name": "Xianix",
+    "email": "hello@xianix.com",
+    "url": "https://xianix.com"
+  },
+  "homepage": "https://xianix.com",
+  "repository": "https://github.com/xianix-team/plugins-official",
+  "license": "MIT",
+  "keywords": [
+    "chatbot-testing",
+    "ai-testing",
+    "playwright",
+    "conversational-ai",
+    "qa",
+    "browser-testing",
+    "llm-judge",
+    "github",
+    "azure-devops"
+  ],
+  "commands": ["./commands/test-chatbot.md"],
+  "agents": [
+    "./agents/orchestrator.md"
+  ],
+  "skills": "./skills/",
+  "outputStyles": "./styles/",
+  "providers": "./providers/"
+}
