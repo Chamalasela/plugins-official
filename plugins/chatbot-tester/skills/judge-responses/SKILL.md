@@ -13,7 +13,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | Variable | Source | Description |
 |---|---|---|
 | `CATEGORY_RESULTS` | Phase 2 | Structured results per test category including verbatim bot responses |
-| `KNOWLEDGE` | orchestrator | Parsed contents of `knowledge/chatbot-tester.json` |
+| `KNOWLEDGE` | orchestrator | Parsed contents of the `chatbot-test` block from the GitHub issue or Azure DevOps work item |
 
 ## Outputs
 

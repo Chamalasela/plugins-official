@@ -76,7 +76,6 @@ The script must:
   `CATEGORY_RESULT|{category}|{status}|{detail}|{duration_ms}`
   `QA_RESULT|{index}|{question}|{actual_response}|{duration_ms}`
   `PROBE_RESULT|{category}|{probe_label}|{actual_response}|{duration_ms}`
-- Capture a screenshot to `_cbt_run/screenshots/{category}_fail.png` on any failure
 - Always close the browser in a `finally` block
 
 ### Login (if REQUIRES_LOGIN=true)
@@ -203,7 +202,7 @@ Read `_cbt_run/log.txt`. Parse each pipe-delimited line into the `CATEGORY_RESUL
 
 **If the login entry has status `BLOCKED`:** all 6 categories will be `NOT_RUN`. Skip Phase 3 entirely — there are no responses to judge. Pass `CATEGORY_RESULTS` directly to `skills/post-test-report/SKILL.md`. The overall verdict is `BLOCKED`.
 
-For any FAILED or BLOCKED category (excluding login-blocked NOT_RUN entries), read the corresponding screenshot with the Read tool to self-verify the failure is genuine.
+For any FAILED or BLOCKED category, include the error detail captured from the exception or timeout in the `detail` field of `CATEGORY_RESULTS`.
 
 ---
 
