@@ -2,8 +2,6 @@
 name: test-chatbot
 description: Verify AI chatbot behaviour in a web application. Reads widget configuration and Q&A pairs from a chatbot-test block in a GitHub issue or Azure DevOps work item, opens the chatbot via Playwright (headless Chromium), runs six test categories, judges Q&A accuracy with a batched LLM call, and posts a structured report. Usage: /test-chatbot <url>
 argument-hint: <github-issue-url | azure-devops-wi-url | app-url>
-description: Verify AI chatbot behaviour in a web application. Reads widget configuration and Q&A pairs from a chatbot-test block in a GitHub issue or Azure DevOps work item, opens the chatbot via Playwright (headless Chromium), runs six test categories, judges Q&A accuracy with a batched LLM call, and posts a structured report. Usage: /test-chatbot <url>
-argument-hint: <github-issue-url | azure-devops-wi-url | app-url>
 ---
 
 Run automated AI chatbot verification for $ARGUMENTS.
@@ -14,21 +12,15 @@ Invokes the **orchestrator** agent to:
 
 1. Parse the input URL to determine entry type (GitHub issue, Azure DevOps work item, or direct app URL)
 2. Fetch the issue/work item and extract the `chatbot-test` JSON block for widget hints, credentials, and Q&A pairs
-1. Parse the input URL to determine entry type (GitHub issue, Azure DevOps work item, or direct app URL)
-2. Fetch the issue/work item and extract the `chatbot-test` JSON block for widget hints, credentials, and Q&A pairs
 3. Open the web application in a headless Chromium browser and locate the chatbot widget
 4. Run six test categories against the chatbot
 5. Judge Q&A pair responses with a single batched LLM call
-6. Post a structured report as an issue/work item comment, or write `chatbot-test-report.md` for direct URL runs
 6. Post a structured report as an issue/work item comment, or write `chatbot-test-report.md` for direct URL runs
 
 ## Entry Points
 
 | Entry Point | Example | What the agent does |
 |---|---|---|
-| **GitHub issue URL** | `/test-chatbot https://github.com/owner/repo/issues/42` | Fetches issue body, extracts `chatbot-test` block, runs full test |
-| **Azure DevOps work item URL** | `/test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234` | Fetches work item body, extracts `chatbot-test` block, runs full test |
-| **Direct app URL** | `/test-chatbot https://staging.example.com` | Lite mode — runs UI and fallback tests only, writes report locally |
 | **GitHub issue URL** | `/test-chatbot https://github.com/owner/repo/issues/42` | Fetches issue body, extracts `chatbot-test` block, runs full test |
 | **Azure DevOps work item URL** | `/test-chatbot https://dev.azure.com/org/project/_workitems/edit/1234` | Fetches work item body, extracts `chatbot-test` block, runs full test |
 | **Direct app URL** | `/test-chatbot https://staging.example.com` | Lite mode — runs UI and fallback tests only, writes report locally |
@@ -47,30 +39,12 @@ Invokes the **orchestrator** agent to:
 ## Test Case Block
 
 Add this block to a GitHub issue or Azure DevOps work item body. The agent reads it automatically.
-| Category | Full test | Lite mode |
-|---|---|---|
-| **UI Availability** | Widget loads, trigger button works, input field is interactable | Same |
-| **Functional Accuracy** | Q&A pairs from test block — bot answers judged by LLM | Skipped |
-| **Fallback Handling** | Gibberish and out-of-scope inputs — bot responds gracefully | Same |
-| **Response Latency** | Time from message sent to response complete | Same |
-| **Conversation Continuity** | Follow-up question retains context from previous response | Same |
-| **Empty Input Handling** | Blank message submission handled gracefully | Same |
 
-## Test Case Block
-
-Add this block to a GitHub issue or Azure DevOps work item body. The agent reads it automatically.
-
-````
-```chatbot-test
 ````
 ```chatbot-test
 {
   "url": "https://your-app-url.com",
-  "url": "https://your-app-url.com",
   "widget": {
-    "trigger_hint": "description of how to open the chatbot",
-    "ready_hint": "description of when the input field is ready",
-    "response_done_hint": "description of when the bot has finished responding"
     "trigger_hint": "description of how to open the chatbot",
     "ready_hint": "description of when the input field is ready",
     "response_done_hint": "description of when the bot has finished responding"
@@ -92,13 +66,7 @@ Add this block to a GitHub issue or Azure DevOps work item body. The agent reads
 `credentials` and `knowledge` are optional. See `docs/setup.md` for the full reference.
 
 ## Credentials
-````
 
-`credentials` and `knowledge` are optional. See `docs/setup.md` for the full reference.
-
-## Credentials
-
-The `password_env` field references a secret key stored in Xianix Agentri Studio Secrets. The password value is never written to the test case — only the key name is referenced.
 The `password_env` field references a secret key stored in Xianix Agentri Studio Secrets. The password value is never written to the test case — only the key name is referenced.
 
 ## Verdict Logic
