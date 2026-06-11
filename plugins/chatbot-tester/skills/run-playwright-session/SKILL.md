@@ -24,7 +24,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 ```
 {
   category: string,
-  status: "PASSED" | "FAILED" | "BLOCKED",
+  status: "PASSED" | "FAILED" | "BLOCKED" | "NOT_RUN",
   detail: string,
   qa_pairs: [                          // only present for Functional Accuracy category
     { question, must_contain, actual_response, duration_ms }
@@ -106,7 +106,10 @@ try:
     log('CATEGORY_RESULT|login|PASSED|Generic login succeeded|' + str(duration))
 except Exception as e:
     log('CATEGORY_RESULT|login|BLOCKED|Generic login failed: ' + str(e) + '|0')
-    # Continue — test categories that do not require auth may still pass
+    for category in ['ui_availability', 'functional_accuracy', 'fallback_handling',
+                     'response_latency', 'conversation_continuity', 'empty_input_handling']:
+        log(f'CATEGORY_RESULT|{category}|NOT_RUN|Login failed — category not executed|0')
+    sys.exit(0)
 ```
 
 ### Category 1: UI Availability
@@ -198,7 +201,9 @@ $PYTHON _cbt_run/test_script.py 2>&1 | tee _cbt_run/execution.log
 
 Read `_cbt_run/log.txt`. Parse each pipe-delimited line into the `CATEGORY_RESULTS` structure.
 
-For any FAILED or BLOCKED category, read the corresponding screenshot with the Read tool to self-verify the failure is genuine.
+**If the login entry has status `BLOCKED`:** all 6 categories will be `NOT_RUN`. Skip Phase 3 entirely — there are no responses to judge. Pass `CATEGORY_RESULTS` directly to `skills/post-test-report/SKILL.md`. The overall verdict is `BLOCKED`.
+
+For any FAILED or BLOCKED category (excluding login-blocked NOT_RUN entries), read the corresponding screenshot with the Read tool to self-verify the failure is genuine.
 
 ---
 

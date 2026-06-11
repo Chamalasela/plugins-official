@@ -27,7 +27,24 @@ Overall: {PASSED | PARTIAL | FAILED}
 | Empty Input Handling    | ✅ PASSED                       |
 ```
 
-After the summary table, append one section per category that has detail to show. Categories that fully PASSED with no Q&A pairs or notable probes may be omitted.
+After the summary table, append one section per category that has detail to show. Categories that fully PASSED with no Q&A pairs or notable probes may be omitted. Categories with `NOT RUN` status are never expanded.
+
+**Login-blocked report example** (when login fails, all 6 categories are NOT RUN):
+
+```markdown
+🤖 chatbot-tester — Test Report
+URL tested: {TEST_URL}
+Overall: 🔴 BLOCKED — Login failed
+
+| Category                | Result      |
+|-------------------------|-------------|
+| UI Availability         | ⬜ NOT RUN  |
+| Functional Accuracy     | ⬜ NOT RUN  |
+| Fallback Handling       | ⬜ NOT RUN  |
+| Response Latency        | ⬜ NOT RUN  |
+| Conversation Continuity | ⬜ NOT RUN  |
+| Empty Input Handling    | ⬜ NOT RUN  |
+```
 
 ---
 
@@ -157,6 +174,7 @@ For Conversation Continuity and Empty Input Handling, include a brief block only
 | PARTIAL | ⚠️ |
 | FAILED | ❌ |
 | BLOCKED | 🔴 |
+| NOT RUN | ⬜ |
 
 ---
 
