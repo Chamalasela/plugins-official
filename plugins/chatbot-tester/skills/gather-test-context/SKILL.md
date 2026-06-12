@@ -21,6 +21,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | Variable | Description |
 |---|---|
 | `REQUIRES_LOGIN` | `true` if credentials are declared in the knowledge block; otherwise `false` |
+| `PHASE1_BLOCK` | Set to a reason string if the run must not proceed; otherwise unset |
 
 ---
 
@@ -35,9 +36,11 @@ If `REQUIRES_LOGIN=true`, verify the env var named in `password_env` is set:
 ```bash
 PASSWORD_ENV_KEY="${KNOWLEDGE.credentials.password_env}"
 if [ -z "${!PASSWORD_ENV_KEY:-}" ]; then
-  echo "chatbot-tester WARNING: password_env references '${PASSWORD_ENV_KEY}' but that env var is not set. Login step will be BLOCKED."
+  PHASE1_BLOCK="Password env var '${PASSWORD_ENV_KEY}' is not set. Store the test password in Xianix Agentri Studio Secrets under that key and re-run."
 fi
 ```
+
+If `PHASE1_BLOCK` is set, do not proceed to Phase 2. The orchestrator will post a BLOCKED report and stop.
 
 ---
 

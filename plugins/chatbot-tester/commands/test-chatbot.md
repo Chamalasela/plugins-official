@@ -71,18 +71,14 @@ The `password_env` field references a secret key stored in Xianix Agentri Studio
 
 ## Verdict Logic
 
-| Condition | Overall Verdict |
-|---|---|
-| All categories passed | **PASSED** |
-| Any Q&A pair PARTIAL, no FAIL | **PARTIAL** |
-| Any category FAILED or BLOCKED | **FAILED** |
+See `docs/verdict-logic.md` for the authoritative verdict computation rules.
 
 ## Prerequisites
 
 - Python 3.10+ available (`python3 --version`)
 - `playwright` Python package installed (`pip install playwright && playwright install chromium`)
 - **GitHub issues:** `gh` CLI installed and authenticated
-- **Azure DevOps work items:** `curl` available and `AZURE-DEVOPS-TOKEN` set
+- **Azure DevOps work items:** `curl` available and `AZURE_DEVOPS_TOKEN` set
 - **Login required:** password stored as `CHATBOT-TEST-PASSWORD` in Xianix Agentri Studio Secrets
 
 ---

@@ -46,13 +46,10 @@ gh issue view ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --json numbe
 
 ## Posting the "Test in Progress" Comment
 
-```bash
-gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body "$(cat <<'EOF'
-🤖 **Chatbot test in progress**
+The orchestrator writes the body to `/tmp/cbt_starting.md` before calling this step.
 
-I'm launching a browser session and running the chatbot test suite. The full report will be posted when complete — this may take a few minutes.
-EOF
-)"
+```bash
+gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body-file /tmp/cbt_starting.md
 ```
 
 ---

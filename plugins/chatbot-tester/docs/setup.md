@@ -33,7 +33,7 @@ gh auth login
 **Azure DevOps work items:**
 ```bash
 # Set PAT with Work Items (Read/Write) permissions
-export AZURE-DEVOPS-TOKEN=your_pat_here
+export AZURE_DEVOPS_TOKEN=your_pat_here
 ```
 
 ### 4. Test Password Secret

@@ -94,19 +94,10 @@ For Fallback and Empty Input probes, apply deterministic rules (no LLM call need
 
 ## Step 3: Compute Category Verdicts
 
-For each category, compute the overall category verdict:
-
-| Category | Verdict logic |
-|---|---|
-| UI Availability | Direct from Phase 2 (structural check — no LLM judgment) |
-| Functional Accuracy | PASSED if all pairs PASS; PARTIAL if any PARTIAL and no FAIL; FAILED if any FAIL |
-| Fallback Handling | PASSED if all probes pass; FAILED if any probe fails |
-| Response Latency | PASSED if all responses ≤ 30s; FAILED if any exceeded timeout |
-| Conversation Continuity | From LLM judge in Step 1 |
-| Empty Input Handling | Direct from probe verdict |
+For each category, compute the category verdict using the Category Verdicts table in `docs/verdict-logic.md`.
 
 ---
 
 ## Completion
 
-Hand off to `skills/post-test-report/SKILL.md` with `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM` in scope.
+Hand off to `skills/post-test-report/SKILL.md` with `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM`, `LITE_MODE` in scope.

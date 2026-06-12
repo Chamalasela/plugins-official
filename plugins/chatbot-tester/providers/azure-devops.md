@@ -8,7 +8,7 @@ Required environment variable:
 
 | Variable | Purpose |
 |---|---|
-| `AZURE-DEVOPS-TOKEN` | Azure DevOps Personal Access Token (PAT) |
+| `AZURE_DEVOPS_TOKEN` | Azure DevOps Personal Access Token (PAT) |
 
 ### Token Permissions
 
@@ -37,10 +37,10 @@ API_BASE="https://dev.azure.com/${AZURE_ORG}/${AZURE_PROJECT}"
 ## Fetching Work Item Content
 
 ```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
   "${API_BASE}/_apis/wit/workitems/${WORK_ITEM_ID}?api-version=7.1&\$expand=all"
 
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
   "${API_BASE}/_apis/wit/workitems/${WORK_ITEM_ID}/comments?api-version=7.1-preview.4"
 ```
 
@@ -48,12 +48,18 @@ curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
 
 ## Posting the Starting Comment
 
+The orchestrator writes the body to `/tmp/cbt_starting.md` before calling this step.
+
 ```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
   -X POST \
   -H "Content-Type: application/json" \
   "${API_BASE}/_apis/wit/workitems/${WORK_ITEM_ID}/comments?format=markdown&api-version=7.1-preview.4" \
-  -d '{"text":"🤖 **Chatbot test in progress**\n\nLaunching a browser session and running the chatbot test suite. The full report will be posted when complete — this may take a few minutes."}'
+  -d "$(python3 -c "
+import json, pathlib
+body = pathlib.Path('/tmp/cbt_starting.md').read_text(encoding='utf-8')
+print(json.dumps({'text': body}))
+")"
 ```
 
 ---
@@ -61,7 +67,7 @@ curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
 ## Posting a BLOCKED Comment
 
 ```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
   -X POST \
   -H "Content-Type: application/json" \
   "${API_BASE}/_apis/wit/workitems/${WORK_ITEM_ID}/comments?format=markdown&api-version=7.1-preview.4" \
@@ -80,7 +86,7 @@ BLOCKED
 ## Posting the Test Report
 
 ```bash
-curl -s -u ":${AZURE-DEVOPS-TOKEN}" \
+curl -s -u ":${AZURE_DEVOPS_TOKEN}" \
   -X POST \
   -H "Content-Type: application/json" \
   "${API_BASE}/_apis/wit/workitems/${WORK_ITEM_ID}/comments?format=markdown&api-version=7.1-preview.4" \

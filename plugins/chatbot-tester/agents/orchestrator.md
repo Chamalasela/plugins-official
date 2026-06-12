@@ -59,11 +59,11 @@ Usage:
   /test-chatbot https://app-under-test.com   (lite mode — UI tests only)
 ```
 
-For `ENTRY_TYPE=issue`: parse `GITHUB_OWNER`, `GITHUB_REPO`, `ISSUE_NUMBER` from the URL.
-For `ENTRY_TYPE=wi`: parse `AZURE_ORG`, `AZURE_PROJECT`, `WORK_ITEM_ID` from the URL per `providers/azure-devops.md`.
-For `ENTRY_TYPE=url`: set `TEST_URL` to the argument. No further parsing needed.
+For `ENTRY_TYPE=issue`: parse `GITHUB_OWNER`, `GITHUB_REPO`, `ISSUE_NUMBER` from the URL. Set `ENTRY_ID = ISSUE_NUMBER`.
+For `ENTRY_TYPE=wi`: parse `AZURE_ORG`, `AZURE_PROJECT`, `WORK_ITEM_ID` from the URL per `providers/azure-devops.md`. Set `ENTRY_ID = WORK_ITEM_ID`.
+For `ENTRY_TYPE=url`: set `TEST_URL` to the argument. Set `ENTRY_ID = TEST_URL`. No further parsing needed.
 
-Store: `ENTRY_TYPE`, `PLATFORM`, `TEST_URL` (if direct URL), and the parsed identifiers.
+Store: `ENTRY_TYPE`, `PLATFORM`, `ENTRY_ID`, `TEST_URL` (if direct URL), and the parsed identifiers.
 
 ---
 
@@ -145,6 +145,35 @@ The report will include a callout explaining which categories were skipped and h
 
 Immediately after extracting the block — before launching the browser — post a starting comment on the issue/work item. Skip for direct URL runs.
 
+Write the starting comment body to `/tmp/cbt_starting.md`. Before running the command, resolve the three placeholder values from `KNOWLEDGE`:
+
+- `{FUNCTIONAL_ACCURACY_NOTE}` → `"{n} Q&A pairs"` (where n = length of `KNOWLEDGE.knowledge`) if the array exists and is non-empty; otherwise `"⚠️ Will be skipped — no Q&A pairs in test case"`
+- `{LOGIN_LINE}` → `\n🔐 Login will be attempted before testing begins.` if `KNOWLEDGE.credentials` exists; otherwise omit (empty string)
+- `{TEST_URL}` → the URL being tested
+
+Then run with the placeholders substituted:
+
+```bash
+python3 -c "
+import pathlib
+pathlib.Path('/tmp/cbt_starting.md').write_text(
+    '🤖 **Chatbot test in progress**\n\n'
+    '**URL under test:** {TEST_URL}\n\n'
+    'Running the test suite below. The full report will be posted as a new comment when complete — this typically takes **up to 20 minutes**.\n\n'
+    '| # | Test Category | Notes |\n'
+    '|---|---|---|\n'
+    '| 1 | UI Availability | |\n'
+    '| 2 | Functional Accuracy | {FUNCTIONAL_ACCURACY_NOTE} |\n'
+    '| 3 | Fallback Handling | |\n'
+    '| 4 | Response Latency | |\n'
+    '| 5 | Conversation Continuity | |\n'
+    '| 6 | Empty Input Handling | |{LOGIN_LINE}\n',
+    encoding='utf-8'
+)
+"
+```
+
+Then post via the provider:
 - **GitHub:** see `providers/github.md` — Posting the "Test in Progress" Comment
 - **Azure DevOps:** see `providers/azure-devops.md` — Posting the Starting Comment
 
@@ -159,6 +188,19 @@ Read and follow `skills/gather-test-context/SKILL.md`.
 Inputs: `TEST_URL`, `KNOWLEDGE`, `LITE_MODE`.
 
 This phase outputs: `REQUIRES_LOGIN`.
+
+---
+
+## Phase 1 Block Check
+
+After Phase 1 completes, check if `PHASE1_BLOCK` is set. If it is:
+- Post a BLOCKED comment on the issue/work item (skip for direct URL runs — write the report locally instead) with this message:
+
+  ```
+  chatbot-tester BLOCKED: {PHASE1_BLOCK}
+  ```
+
+- Stop. Do not proceed to Phase 2.
 
 ---
 
@@ -180,7 +222,7 @@ This phase outputs: `JUDGED_RESULTS` — the same structure as `CATEGORY_RESULTS
 
 ## Phase 4 — Post Test Report
 
-Read and follow `skills/post-test-report/SKILL.md`, passing in `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `PLATFORM`, `LITE_MODE`, and the parsed identifiers.
+Read and follow `skills/post-test-report/SKILL.md`, passing in `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM`, and `LITE_MODE`.
 
 For issue/wi runs: posts report as a comment via the correct provider.
 For direct URL runs: writes `chatbot-test-report.md` in the current directory.

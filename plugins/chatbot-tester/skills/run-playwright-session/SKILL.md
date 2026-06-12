@@ -41,7 +41,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 
 ```bash
 PYTHON=$(command -v python3 2>/dev/null || command -v python)
-$PYTHON -c "import playwright" 2>/dev/null || pip install playwright
+$PYTHON -c "import playwright" 2>/dev/null || $PYTHON -m pip install playwright
 $PYTHON -m playwright install chromium --with-deps 2>/dev/null || $PYTHON -m playwright install chromium
 ```
 
@@ -57,10 +57,15 @@ Otherwise, run a short Playwright exploration script to capture the page's HTML 
 - `KNOWLEDGE.widget.ready_hint` → `READY_SELECTOR`
 - `KNOWLEDGE.widget.response_done_hint` → `RESPONSE_DONE_SELECTOR`
 
-If translation fails for any hint, use the fallback heuristic chain:
-1. Send button re-enables: `button[type=submit]:not([disabled]), button.send:not([disabled])`
-2. Typing indicator disappears: `.typing-indicator, .chat-loading, [class*="typing"]`
-3. Input field re-enables: `input[type=text]:not([disabled]), textarea:not([disabled])`
+If translation fails for a hint, apply the per-variable fallback below. These are **last-resort** generic selectors — they match by common conventions and may hit unrelated elements on complex pages. Prefer a successful LLM translation over any fallback.
+
+| Variable | Fallback selector (try in order, use first that matches) |
+|---|---|
+| `TRIGGER_SELECTOR` | `button[aria-label*="chat" i], button[title*="chat" i], [class*="chat-trigger"], [class*="chat-button"], [id*="chat-button"]` |
+| `READY_SELECTOR` | `input[type=text]:not([disabled]), textarea:not([disabled])` |
+| `RESPONSE_DONE_SELECTOR` | 1. `.typing-indicator, .chat-loading, [class*="typing"]` disappears (wait for absence); 2. `button[type=submit]:not([disabled]), button.send:not([disabled])` re-enables; 3. `input[type=text]:not([disabled]), textarea:not([disabled])` re-enables |
+
+If a fallback selector matches multiple elements, prefer the one deepest inside a chat/widget container (e.g. `[class*="chat"], [class*="widget"], [id*="chat"]`).
 
 ---
 
@@ -150,9 +155,10 @@ except Exception as e:
 ### Category 1: UI Availability
 
 ```python
-# 1. Open the page and wait for it to load
-page.goto(TEST_URL)
-page.wait_for_load_state('networkidle')
+# Login already navigated to TEST_URL — only navigate here if login was not performed
+if not REQUIRES_LOGIN:
+    page.goto(TEST_URL)
+    page.wait_for_load_state('networkidle')
 
 # 2. Find and click the trigger element
 trigger = page.wait_for_selector(TRIGGER_SELECTOR, timeout=30000)
