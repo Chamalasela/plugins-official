@@ -64,6 +64,31 @@ If translation fails for any hint, use the fallback heuristic chain:
 
 ---
 
+## Step 2.5: Generate Continuity Probe
+
+Before writing the test script, generate a topic-specific follow-up question to use in Category 5.
+
+**If `KNOWLEDGE` has a `knowledge` array with at least one entry**, take the last question in the array and make a single LLM call:
+
+```
+Given that a user just asked an AI chatbot: "{last_question}"
+
+Generate one short follow-up question (max 12 words) that:
+- Is topically related to the original question
+- Only makes sense if the chatbot remembers what it just answered
+- Does not repeat the original question
+- Is natural conversational English
+
+Return only the follow-up question, no explanation.
+```
+
+Store the result as `CONTINUITY_PROBE`.
+
+**If no `knowledge` array exists** (lite mode or no Q&A pairs), set:
+`CONTINUITY_PROBE = "What else can you tell me about that topic?"`
+
+---
+
 ## Step 3: Write and Execute Test Script
 
 Create directory `_cbt_run/` and write `_cbt_run/test_script.py`.
@@ -178,12 +203,10 @@ If `LITE_MODE=true` and no Q&A pairs were run, measure latency on the fallback p
 
 ### Category 5: Conversation Continuity
 
-After at least one message has been sent (Q&A pair or fallback probe), send the probe:
-`"Can you tell me more about that?"`
+After at least one message has been sent (Q&A pair or fallback probe), send `CONTINUITY_PROBE` — the topic-specific follow-up generated in Step 2.5.
 
-Verify:
-- Response is non-empty
-- Response does not say "I don't understand what you mean" or equivalent reset phrases
+Log the probe text alongside the response so the judge can evaluate relevance:
+`PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE}|{actual_response}|{duration_ms}`
 
 ### Category 6: Empty Input Handling
 
