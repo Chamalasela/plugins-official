@@ -46,7 +46,14 @@ Parse the arguments:
 1. **Entry type** — `pr`, `issue`, or `wi`. If absent, default to `pr` using the current branch.
 2. **ID** — the number or ID following the entry type.
 
-Store: `ENTRY_TYPE`, `ENTRY_ID`. These are passed through to every phase.
+**Determine `IS_PRODUCTION`**:
+
+- If the environment variable `ENVIRONMENT` is set to `production` (case-insensitive) → `IS_PRODUCTION=true`
+- Otherwise, or if `ENVIRONMENT` is not set → `IS_PRODUCTION=false`
+
+When `IS_PRODUCTION=true`, all data-modifying test steps are skipped and only read-only steps are executed. By default (`ENVIRONMENT` unset) all steps run. An operator sets `ENVIRONMENT=production` via `with-envs` in the Xianix Agent `rules.json` to restrict execution.
+
+Store: `ENTRY_TYPE`, `ENTRY_ID`, `IS_PRODUCTION`. These are passed through to every phase.
 
 ---
 
@@ -100,15 +107,15 @@ If posting the starting comment fails, output a single warning line and continue
 
 ## Phase 1 — Gather Test Context
 
-Read and follow `skills/gather-test-context/SKILL.md`.
+Read and follow `skills/gather-test-context/SKILL.md`, passing in `IS_PRODUCTION`.
 
-It produces the variables `TEST_URL`, `PRODUCTION_WARNING`, `TEST_PLAN`, and (for `wi` entry on Azure DevOps) `LINKED_PR_ID`. If a testable URL cannot be found, that skill posts a comment and stops the run — do not proceed to Phase 2 in that case.
+It produces the variables `TEST_URL`, `IS_PRODUCTION`, `TEST_PLAN`, and (for `wi` entry on Azure DevOps) `LINKED_PR_ID`. If a testable URL cannot be found, that skill posts a comment and stops the run — do not proceed to Phase 2 in that case.
 
 ---
 
 ## Phase 2 — Run Playwright Session
 
-Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `PRODUCTION_WARNING`, and `TEST_PLAN`.
+Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `IS_PRODUCTION`, and `TEST_PLAN`.
 
 It produces an inline list of per-step results with the shape:
 
@@ -116,13 +123,13 @@ It produces an inline list of per-step results with the shape:
 { n, desc, status: PASSED|FAILED|BLOCKED, reason, screenshot }
 ```
 
-The skill enforces the global execution rules (single browser session, retries, cleanup) and honours `PRODUCTION_WARNING` by skipping any data-modifying step.
+The skill enforces the global execution rules (single browser session, retries, cleanup) and skips any data-modifying step when `IS_PRODUCTION=true`.
 
 ---
 
 ## Phase 3 — Post Test Execution Report
 
-Read and follow `skills/post-test-report/SKILL.md`, passing in the inline result list, `TEST_URL`, `PRODUCTION_WARNING`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM`, and (if applicable) `LINKED_PR_ID`.
+Read and follow `skills/post-test-report/SKILL.md`, passing in the inline result list, `TEST_URL`, `IS_PRODUCTION`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM`, and (if applicable) `LINKED_PR_ID`.
 
 It computes the overall verdict (`PASSED` / `FAILED` / `BLOCKED`), composes the report body strictly per `styles/report-template.md`, and posts it via the correct provider:
 - **GitHub** → `providers/github.md`

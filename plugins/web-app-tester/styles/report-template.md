@@ -17,7 +17,7 @@ The report is posted as a single GitHub comment. Use this exact structure:
 ```markdown
 🤖 web-app-tester — Test Execution Report
 URL tested: {TEST_URL}
-{IF PRODUCTION_WARNING}⚠️ URL appears to be production. Executed read-only steps only.{END IF}
+{IF IS_PRODUCTION}⚠️ Running in production environment. Executed read-only steps only.{END IF}
 Total: {N} | ✅ Passed: {X} | ❌ Failed: {Y} | 🔴 Blocked: {Z}
 Overall: {PASSED | FAILED | BLOCKED}
 
@@ -78,7 +78,7 @@ Write step descriptions in business language — describe the **user action and 
 | ❌ FAILED | Action completed BUT expected outcome was NOT observed (wrong text, element absent, wrong page) |
 | 🔴 BLOCKED | Action could not be executed after 3 retries (element not found, navigation error, timeout, crash) |
 
-A step that was **skipped due to production URL read-only mode** is marked `🔴 BLOCKED` with reason: `Skipped — production URL, read-only mode`.
+A step that was **skipped due to production environment read-only mode** is marked `🔴 BLOCKED` with reason: `Skipped — production environment, read-only mode`.
 
 ---
 
@@ -95,15 +95,15 @@ Screenshot: captured at point of failure
 
 ---
 
-## Production Warning
+## Production Notice
 
-If the tested URL appears to be a production domain, the report must include this warning immediately after the URL line:
+If `IS_PRODUCTION=true`, the report must include this notice immediately after the URL line:
 
 ```
-⚠️ URL appears to be production. Executed read-only steps only.
+⚠️ Running in production environment. Executed read-only steps only.
 ```
 
-Steps that were skipped due to this restriction are listed in the table as `🔴 BLOCKED` with reason `Skipped — production URL, read-only mode`.
+Steps that were skipped due to this restriction are listed in the table as `🔴 BLOCKED` with reason `Skipped — production environment, read-only mode`.
 
 ---
 

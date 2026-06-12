@@ -14,7 +14,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 |---|---|---|
 | Inline result list | run-playwright-session | One entry per step: `{ n, desc, status, reason, screenshot }` |
 | `TEST_URL` | gather-test-context | URL that was tested |
-| `PRODUCTION_WARNING` | gather-test-context | Whether read-only mode was applied |
+| `IS_PRODUCTION` | orchestrator | Whether read-only mode was applied |
 | `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
 | `ENTRY_ID` | orchestrator | PR number, issue number, or work item ID |
 | `PLATFORM` | orchestrator | `GitHub` or `AzureDevOps` |
@@ -51,7 +51,7 @@ The skeleton is:
 ```
 🤖 web-app-tester (Webwright) — Test Execution Report
 URL tested: {TEST_URL}
-{PRODUCTION_WARNING ? "⚠️ URL appears to be production. Executed read-only steps only." : ""}
+{IS_PRODUCTION ? "⚠️ Running in production environment. Executed read-only steps only." : ""}
 Total: N | ✅ Passed: X | ❌ Failed: Y | 🔴 Blocked: Z
 Overall: PASSED / FAILED / BLOCKED
 
