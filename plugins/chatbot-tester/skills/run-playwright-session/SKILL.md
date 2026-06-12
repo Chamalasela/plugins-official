@@ -83,11 +83,21 @@ The script must:
 Before opening the chatbot, attempt login using `username` (literal value) and the env var named in `password_env`:
 
 ```python
-import os
+import os, json, pathlib
 
 username = KNOWLEDGE["credentials"]["username"]                          # literal value from block
 password_env_key = KNOWLEDGE["credentials"]["password_env"]             # e.g. "CHATBOT-TEST-PASSWORD"
 password = os.environ.get(password_env_key, "")
+
+# Fallback: read from ~/.chatbot-tester-creds.json if env var is empty
+if not password:
+    creds_file = pathlib.Path.home() / ".chatbot-tester-creds.json"
+    if creds_file.exists():
+        try:
+            creds = json.loads(creds_file.read_text())
+            password = creds.get(password_env_key, "")
+        except Exception:
+            pass
 
 page.goto(TEST_URL)
 try:
