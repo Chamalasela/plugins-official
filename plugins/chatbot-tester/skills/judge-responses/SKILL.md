@@ -1,6 +1,7 @@
 ---
 name: judge-responses
 description: Phase 3 of chatbot-tester. Makes a single batched LLM call to judge all Q&A pairs from the Functional Accuracy category. Also judges fallback, continuity, and empty input probe responses. Outputs JUDGED_RESULTS with verdict and reasoning added to each item.
+model: claude-haiku-4-5-20251001
 disable-model-invocation: true
 ---
 
