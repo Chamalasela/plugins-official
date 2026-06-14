@@ -1,6 +1,7 @@
 ---
 name: judge-responses
 description: Phase 3 of chatbot-tester. Makes a single batched LLM call to judge all Q&A pairs from the Functional Accuracy category. Also judges fallback, continuity, and empty input probe responses. Outputs JUDGED_RESULTS with verdict and reasoning added to each item.
+model: claude-haiku-4-5-20251001
 disable-model-invocation: true
 ---
 
@@ -25,7 +26,9 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 
 Extract all Q&A pairs from `CATEGORY_RESULTS.functional_accuracy.qa_pairs` and the continuity probe result from `CATEGORY_RESULTS.conversation_continuity.probe_results[0]`.
 
-For each Q&A pair, truncate `actual_response` to 500 tokens before including it in the judge prompt.
+Before judging, check each Q&A pair's `actual_response`. If it equals `(response capture failed — no matching bot message element found)`, assign `verdict: "FAIL"` and `reasoning: "Response capture failed — no bot message element matched; cannot evaluate."` directly without including it in the LLM call.
+
+For all remaining pairs, truncate `actual_response` to 500 tokens before including it in the judge prompt.
 
 Make **one single LLM call** with all Q&A pairs and the continuity probe batched together. Use this prompt structure:
 

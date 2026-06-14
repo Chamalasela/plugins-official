@@ -65,6 +65,46 @@ Include this section immediately after the summary table when `LITE_MODE=true`:
 
 ---
 
+## Special Failure Callouts
+
+### Timeout
+
+When any category or Q&A pair has a detail/response value of `90-second selector timeout — chatbot did not respond in time`, render it as a distinct callout in that category's section:
+
+```markdown
+> ⏱️ **Timeout** — No response was detected within 90 seconds. This can mean the AI was still generating a response, or the "response done" selector did not match the page.
+```
+
+Use this callout in place of the normal **Bot response:** / **Verdict:** block for that item.
+
+### Response capture failed
+
+When a Q&A pair's `actual_response` is `(response capture failed — no matching bot message element found)`, render:
+
+```markdown
+> ⚠️ **Response capture failed** — The bot appeared to respond (the "done" indicator fired) but no matching message element was found in the page. The response selector may need updating for this app.
+```
+
+### Script crash (log.txt missing or empty)
+
+When the overall result is a `script_crash` BLOCKED entry, render the report as:
+
+```markdown
+🤖 chatbot-tester — Test Report
+URL tested: {TEST_URL}
+Overall: 🔴 BLOCKED — Script crashed before any results were recorded
+
+### Script output (last 20 lines)
+
+```
+{last_20_lines_of_execution.log}
+```
+
+No test categories ran. Fix the error above and re-run.
+```
+
+---
+
 ## Functional Accuracy Section
 
 Always include this section regardless of verdict. Show every Q&A pair as a collapsible block.
