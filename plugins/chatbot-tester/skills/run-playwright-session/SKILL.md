@@ -69,28 +69,29 @@ If a fallback selector matches multiple elements, prefer the one deepest inside 
 
 ---
 
-## Step 2.5: Generate Continuity Probe
+## Step 2.5: Generate Continuity Probes
 
-Before writing the test script, generate a topic-specific follow-up question to use in Category 5.
+Before writing the test script, generate a topic-specific follow-up question for **each** Q&A pair so the probe can be sent immediately after the first passing pair.
 
-**If `KNOWLEDGE` has a `knowledge` array with at least one entry**, take the last question in the array and make a single LLM call:
+**If `KNOWLEDGE` has a `knowledge` array with at least one entry**, make a single batched LLM call:
 
 ```
-Given that a user just asked an AI chatbot: "{last_question}"
-
-Generate one short follow-up question (max 12 words) that:
-- Is topically related to the original question
+For each question below, generate one short follow-up question (max 12 words) that:
+- Is topically related to that specific question
 - Only makes sense if the chatbot remembers what it just answered
 - Does not repeat the original question
 - Is natural conversational English
 
-Return only the follow-up question, no explanation.
+Questions:
+{for each pair: "{index}: {question}"}
+
+Return a JSON array: [{"index": 0, "probe": "..."}, ...]
 ```
 
-Store the result as `CONTINUITY_PROBE`.
+Store the parsed list as `CONTINUITY_PROBES` (a dict keyed by Q&A pair index).
 
 **If no `knowledge` array exists** (lite mode or no Q&A pairs), set:
-`CONTINUITY_PROBE = "What else can you tell me about that topic?"`
+`CONTINUITY_PROBE_FALLBACK = "What else can you tell me about that topic?"`
 
 ---
 
@@ -205,7 +206,7 @@ except playwright.sync_api.TimeoutError:
 **If `LITE_MODE=true` or `KNOWLEDGE` has no `knowledge` array**, skip this category and log:
 `CATEGORY_RESULT|functional_accuracy|BLOCKED|Skipped — no Q&A pairs in test case|0`
 
-Otherwise, for each Q&A pair in `KNOWLEDGE.knowledge`, wrap in a per-question try/except:
+Otherwise, initialise `continuity_done = False` before the loop, then for each Q&A pair in `KNOWLEDGE.knowledge`, wrap in a per-question try/except:
 
 ```python
 try:
@@ -233,6 +234,34 @@ try:
     duration_ms = int((time.time() - start) * 1000)
 
     log(f'QA_RESULT|{index}|{question}|{response_text}|{duration_ms}')
+
+    # Inline continuity check — send the probe immediately after the first passing pair
+    # so the bot still has that exchange in context. "Passing" here means a quick
+    # substring check on must_contain (the LLM judge does the authoritative evaluation
+    # in Phase 3; this is just used to pick the anchor pair).
+    if not continuity_done and must_contain and response_text != '__RESPONSE_CAPTURE_FAILED__':
+        if all(term.lower() in response_text.lower() for term in must_contain):
+            continuity_probe = CONTINUITY_PROBES[index]
+            try:
+                c_start = time.time()
+                c_input = page.wait_for_selector(READY_SELECTOR, timeout=90000)
+                c_input.fill(continuity_probe)
+                page.keyboard.press('Enter')
+                page.wait_for_selector(RESPONSE_DONE_SELECTOR, timeout=90000)
+                continuity_response = page.locator('[class*="bot-message"], [class*="assistant"], [data-role="bot"]').last.inner_text()
+                if not continuity_response.strip():
+                    continuity_response = page.locator(
+                        '[class*="chat"] [class*="message"]:last-child, '
+                        '[class*="widget"] [class*="message"]:last-child, '
+                        '[class*="response"]:last-child'
+                    ).last.inner_text()
+                c_duration_ms = int((time.time() - c_start) * 1000)
+                log(f'PROBE_RESULT|conversation_continuity|{continuity_probe}|{continuity_response}|{c_duration_ms}')
+                log(f'CONTINUITY_ANCHOR|{index}')
+            except playwright.sync_api.TimeoutError:
+                log(f'PROBE_RESULT|conversation_continuity|{continuity_probe}|90-second selector timeout — chatbot did not respond in time|90000')
+                log(f'CONTINUITY_ANCHOR|{index}')
+            continuity_done = True
 except playwright.sync_api.TimeoutError:
     log(f'QA_RESULT|{index}|{question}|90-second selector timeout — chatbot did not respond in time|90000')
 ```
@@ -252,7 +281,13 @@ Wrap each probe send in a try/except for `playwright.sync_api.TimeoutError` and 
 
 ### Category 4: Response Latency
 
-Record `duration_ms` for each Q&A pair message send (already captured in Category 2). Compute the average. The category PASSes if all responses complete within 30 seconds. Log the average latency in `detail`.
+Record `duration_ms` for each Q&A pair message send (already captured in Category 2). Compute the average. Apply this threshold table and log the average latency in `detail`:
+
+| Average response time | Verdict |
+|---|---|
+| ≤ 30 s | PASSED |
+| 31 – 60 s | PARTIAL — responses were slow but within the acceptable ceiling for AI chatbots |
+| > 60 s | FAILED — responses exceeded the 60-second ceiling |
 
 If all captured `duration_ms` values equal `90000` (every response timed out), do not compute or report an average. Instead log:
 `CATEGORY_RESULT|response_latency|FAILED|All responses timed out — latency could not be measured|0`
@@ -261,13 +296,19 @@ If `LITE_MODE=true` and no Q&A pairs were run, measure latency on the fallback p
 
 ### Category 5: Conversation Continuity
 
-After at least one message has been sent (Q&A pair or fallback probe), send `CONTINUITY_PROBE` — the topic-specific follow-up generated in Step 2.5.
+Three cases based on what happened in Category 2:
 
-Log the probe text alongside the response so the judge can evaluate relevance:
-`PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE}|{actual_response}|{duration_ms}`
+**Case A — `continuity_done = True`:** The probe already ran inline after the first passing Q&A pair. No action needed — results are already logged. Log:
+`CATEGORY_RESULT|conversation_continuity|DONE_INLINE|Probe ran inline after Q&A pair {continuity_anchor_index}|0`
+
+**Case B — Lite mode or no `knowledge` array:** No Q&A pairs were run. Send `CONTINUITY_PROBE_FALLBACK` after the fallback probes have been sent:
+`PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE_FALLBACK}|{actual_response}|{duration_ms}`
 
 Wrap in a try/except for `playwright.sync_api.TimeoutError` and log:
-`PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE}|90-second selector timeout — chatbot did not respond in time|90000`
+`PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE_FALLBACK}|90-second selector timeout — chatbot did not respond in time|90000`
+
+**Case C — Q&A pairs were run but none passed the inline check:** No anchor pair was found. Do not send a probe. Log:
+`CATEGORY_RESULT|conversation_continuity|NOT_RUN|No passing Q&A pair found — continuity probe skipped|0`
 
 ### Category 6: Empty Input Handling
 

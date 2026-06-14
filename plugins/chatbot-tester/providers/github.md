@@ -57,18 +57,17 @@ gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body-fi
 ## Posting a BLOCKED Comment
 
 ```bash
-gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body "${BLOCKED_MESSAGE}"
+python3 -c "import pathlib; pathlib.Path('/tmp/cbt_blocked.md').write_text('''${BLOCKED_MESSAGE}''', encoding='utf-8')"
+gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body-file /tmp/cbt_blocked.md
 ```
 
 ---
 
 ## Posting the Test Report
 
-Construct the full report body following `styles/report-template.md`, then post it.
+Write the report to a UTF-8 temp file first, then post using `--body-file` to avoid shell encoding corruption of emoji and Unicode characters.
 
 ```bash
-gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body "$(cat <<'EOF'
-${REPORT_BODY}
-EOF
-)"
+python3 -c "import pathlib; pathlib.Path('/tmp/cbt_report.md').write_text('''${REPORT_BODY}''', encoding='utf-8')"
+gh issue comment ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --body-file /tmp/cbt_report.md
 ```

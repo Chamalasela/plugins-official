@@ -25,11 +25,13 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 
 Extract all Q&A pairs from `CATEGORY_RESULTS.functional_accuracy.qa_pairs` and the continuity probe result from `CATEGORY_RESULTS.conversation_continuity.probe_results[0]`.
 
+**If `CATEGORY_RESULTS.conversation_continuity.status` is `NOT_RUN`**, skip the continuity section entirely — set `verdict: "NOT_RUN"` and `reasoning: "No passing Q&A pair found — probe was not sent."` directly without including it in the LLM call.
+
 Before judging, check each Q&A pair's `actual_response`. If it equals `(response capture failed — no matching bot message element found)`, assign `verdict: "FAIL"` and `reasoning: "Response capture failed — no bot message element matched; cannot evaluate."` directly without including it in the LLM call.
 
 For all remaining pairs, truncate `actual_response` to 500 tokens before including it in the judge prompt.
 
-Make **one single LLM call** with all Q&A pairs and the continuity probe batched together. Use this prompt structure:
+Make **one single LLM call** with all Q&A pairs and the continuity probe batched together (skip continuity section if NOT_RUN). Use this prompt structure:
 
 ```
 You are a strict but fair QA judge evaluating an AI chatbot's responses.
@@ -51,15 +53,19 @@ Bot response (truncated to 500 tokens): {actual_response_truncated}
 ---
 
 ## Conversation Continuity Probe
-The follow-up question below was sent after the Q&A exchange above. Judge whether the bot's response demonstrates it retained context from the prior conversation.
+The follow-up question below was sent immediately after Q&A pair {continuity_anchor_index} in the same conversation, once that pair returned a response containing all required terms. Judge whether the bot's response demonstrates it retained context from that specific exchange.
+
+Anchor Q&A pair (index {continuity_anchor_index}):
+  Question: {anchor_question}
+  Required terms: {anchor_must_contain}
 
 Follow-up sent: {continuity_probe}
 Bot response: {continuity_response_truncated}
 
 Verdict criteria for continuity:
-- PASS: response is topically relevant to the follow-up and shows the bot remembered prior context
+- PASS: response is topically relevant to the follow-up and shows the bot remembered the anchor Q&A exchange
 - PARTIAL: response is non-empty and on-topic but generic — could have been given without any prior context
-- FAIL: response is empty, asks the user to clarify what they mean, or shows no awareness of prior context
+- FAIL: response is empty, asks the user to clarify what they mean, or shows no awareness of the anchor exchange
 
 Return a JSON object:
 {
