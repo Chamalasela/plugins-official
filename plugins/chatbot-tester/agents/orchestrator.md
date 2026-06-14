@@ -214,7 +214,9 @@ This phase outputs: `CATEGORY_RESULTS` — a structured list of results per test
 
 ## Phase 3 — Judge Responses
 
-Read and follow `skills/judge-responses/SKILL.md`, passing in `CATEGORY_RESULTS` and `KNOWLEDGE`.
+Delegate this phase entirely to a sub-agent with `model: claude-haiku-4-5-20251001`. Pass `CATEGORY_RESULTS` and `KNOWLEDGE` to the sub-agent and instruct it to read and follow `skills/judge-responses/SKILL.md`.
+
+Using Haiku here is intentional — the judge task is a bounded, structured evaluation (term matching + rubric scoring) that does not require the orchestrator's full reasoning capability, and it significantly reduces per-run cost.
 
 This phase outputs: `JUDGED_RESULTS` — the same structure as `CATEGORY_RESULTS` with verdict and reasoning added to each Q&A pair.
 
