@@ -101,7 +101,7 @@ Create directory `_cbt_run/` and write `_cbt_run/test_script.py`.
 The script must:
 - Use **sync Playwright API** (not async)
 - Open `TEST_URL` in headless Chromium
-- Use a 30-second timeout for all `wait_for_selector` calls
+- Use a 90-second timeout for all `wait_for_selector` calls (AI chatbot responses can take 30–60 s)
 - Log each result as a pipe-delimited line to `_cbt_run/log.txt`:
   `CATEGORY_RESULT|{category}|{status}|{detail}|{duration_ms}`
   `QA_RESULT|{index}|{question}|{actual_response}|{duration_ms}`
@@ -131,43 +131,73 @@ if not password:
 
 page.goto(TEST_URL)
 try:
+    # Step 1: fill the username/email field
     username_field = page.wait_for_selector(
         'input[type=email], input[type=text][name*=user], input[name*=email], input[id*=user], input[id*=email]',
-        timeout=5000
-    )
-    password_field = page.wait_for_selector(
-        'input[type=password]',
-        timeout=5000
+        timeout=10000
     )
     username_field.fill(username)
+
+    # Step 2: check if a password field is already visible (single-step form)
+    #         or if we need to submit the email first (two-step form)
+    password_field = page.query_selector('input[type=password]')
+    if not password_field:
+        # Two-step flow: submit the email, then wait for the password field to appear
+        page.keyboard.press('Enter')
+        password_field = page.wait_for_selector('input[type=password]', timeout=10000)
+
+    # Step 3: fill password and submit
     password_field.fill(password)
     page.keyboard.press('Enter')
-    page.wait_for_load_state('networkidle', timeout=10000)
-    log('CATEGORY_RESULT|login|PASSED|Generic login succeeded|' + str(duration))
+
+    # Step 4: wait for navigation — try networkidle first, fall back to domcontentloaded
+    # (apps with WebSockets or long-polling never reach networkidle)
+    try:
+        page.wait_for_load_state('networkidle', timeout=15000)
+    except Exception:
+        page.wait_for_load_state('domcontentloaded', timeout=15000)
+
+    log('CATEGORY_RESULT|login|PASSED|Login succeeded|' + str(duration))
 except Exception as e:
-    log('CATEGORY_RESULT|login|BLOCKED|Generic login failed: ' + str(e) + '|0')
+    log('CATEGORY_RESULT|login|BLOCKED|Login failed: ' + str(e) + '|0')
     for category in ['ui_availability', 'functional_accuracy', 'fallback_handling',
                      'response_latency', 'conversation_continuity', 'empty_input_handling']:
         log(f'CATEGORY_RESULT|{category}|NOT_RUN|Login failed — category not executed|0')
     sys.exit(0)
 ```
 
+### Timeout handling (applies to every category)
+
+Wrap each category block in a `try/except`. If a `playwright.sync_api.TimeoutError` (or its alias `playwright._impl._errors.TimeoutError`) is raised, log the category as FAILED with a fixed detail string and continue to the next category — do **not** let the exception propagate and crash the script:
+
+```python
+except playwright.sync_api.TimeoutError:
+    log(f'CATEGORY_RESULT|{category}|FAILED|90-second selector timeout — chatbot did not respond in time|0')
+```
+
+All remaining categories must still execute after a timeout in an earlier category.
+
+---
+
 ### Category 1: UI Availability
 
 ```python
-# Login already navigated to TEST_URL — only navigate here if login was not performed
-if not REQUIRES_LOGIN:
-    page.goto(TEST_URL)
-    page.wait_for_load_state('networkidle')
+try:
+    # Login already navigated to TEST_URL — only navigate here if login was not performed
+    if not REQUIRES_LOGIN:
+        page.goto(TEST_URL)
+        page.wait_for_load_state('networkidle')
 
-# 2. Find and click the trigger element
-trigger = page.wait_for_selector(TRIGGER_SELECTOR, timeout=30000)
-trigger.click()
+    # 2. Find and click the trigger element
+    trigger = page.wait_for_selector(TRIGGER_SELECTOR, timeout=90000)
+    trigger.click()
 
-# 3. Wait for the input field to be ready
-page.wait_for_selector(READY_SELECTOR, timeout=30000)
+    # 3. Wait for the input field to be ready
+    page.wait_for_selector(READY_SELECTOR, timeout=90000)
 
-# Verdict: PASSED if all three steps succeed
+    log('CATEGORY_RESULT|ui_availability|PASSED|Widget opened and input field ready|0')
+except playwright.sync_api.TimeoutError:
+    log('CATEGORY_RESULT|ui_availability|FAILED|90-second selector timeout — chatbot did not respond in time|0')
 ```
 
 ### Category 2: Functional Accuracy
@@ -175,20 +205,36 @@ page.wait_for_selector(READY_SELECTOR, timeout=30000)
 **If `LITE_MODE=true` or `KNOWLEDGE` has no `knowledge` array**, skip this category and log:
 `CATEGORY_RESULT|functional_accuracy|BLOCKED|Skipped — no Q&A pairs in test case|0`
 
-Otherwise, for each Q&A pair in `KNOWLEDGE.knowledge`:
+Otherwise, for each Q&A pair in `KNOWLEDGE.knowledge`, wrap in a per-question try/except:
 
 ```python
-start = time.time()
-input_field = page.wait_for_selector(READY_SELECTOR, timeout=30000)
-input_field.fill(question)
-page.keyboard.press('Enter')
+try:
+    start = time.time()
+    input_field = page.wait_for_selector(READY_SELECTOR, timeout=90000)
+    input_field.fill(question)
+    page.keyboard.press('Enter')
 
-page.wait_for_selector(RESPONSE_DONE_SELECTOR, timeout=30000)
+    page.wait_for_selector(RESPONSE_DONE_SELECTOR, timeout=90000)
 
-response_text = page.locator('[class*="bot-message"], [class*="assistant"], [data-role="bot"]').last.inner_text()
-duration_ms = int((time.time() - start) * 1000)
+    response_text = page.locator('[class*="bot-message"], [class*="assistant"], [data-role="bot"]').last.inner_text()
 
-log(f'QA_RESULT|{index}|{question}|{response_text}|{duration_ms}')
+    # Fallback: if the primary locator returned nothing, widen the search to any
+    # element inside a chat/widget container that appeared after the question was sent
+    if not response_text.strip():
+        response_text = page.locator(
+            '[class*="chat"] [class*="message"]:last-child, '
+            '[class*="widget"] [class*="message"]:last-child, '
+            '[class*="response"]:last-child'
+        ).last.inner_text()
+
+    if not response_text.strip():
+        response_text = '__RESPONSE_CAPTURE_FAILED__'
+
+    duration_ms = int((time.time() - start) * 1000)
+
+    log(f'QA_RESULT|{index}|{question}|{response_text}|{duration_ms}')
+except playwright.sync_api.TimeoutError:
+    log(f'QA_RESULT|{index}|{question}|90-second selector timeout — chatbot did not respond in time|90000')
 ```
 
 ### Category 3: Fallback / Error Handling
@@ -201,9 +247,15 @@ For each probe, capture the bot response and verify:
 - Response is non-empty
 - Response does not contain a raw exception, stack trace, or `500` / `error` indicators
 
+Wrap each probe send in a try/except for `playwright.sync_api.TimeoutError` and log:
+`PROBE_RESULT|fallback_handling|{probe_label}|90-second selector timeout — chatbot did not respond in time|90000`
+
 ### Category 4: Response Latency
 
 Record `duration_ms` for each Q&A pair message send (already captured in Category 2). Compute the average. The category PASSes if all responses complete within 30 seconds. Log the average latency in `detail`.
+
+If all captured `duration_ms` values equal `90000` (every response timed out), do not compute or report an average. Instead log:
+`CATEGORY_RESULT|response_latency|FAILED|All responses timed out — latency could not be measured|0`
 
 If `LITE_MODE=true` and no Q&A pairs were run, measure latency on the fallback probes instead.
 
@@ -214,14 +266,20 @@ After at least one message has been sent (Q&A pair or fallback probe), send `CON
 Log the probe text alongside the response so the judge can evaluate relevance:
 `PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE}|{actual_response}|{duration_ms}`
 
+Wrap in a try/except for `playwright.sync_api.TimeoutError` and log:
+`PROBE_RESULT|conversation_continuity|{CONTINUITY_PROBE}|90-second selector timeout — chatbot did not respond in time|90000`
+
 ### Category 6: Empty Input Handling
 
 ```python
-input_field = page.wait_for_selector(READY_SELECTOR, timeout=30000)
-input_field.fill('')
-page.keyboard.press('Enter')
-page.wait_for_timeout(3000)
-# Verify: no crash, no empty error screen, page is still interactive
+try:
+    input_field = page.wait_for_selector(READY_SELECTOR, timeout=90000)
+    input_field.fill('')
+    page.keyboard.press('Enter')
+    page.wait_for_timeout(3000)
+    # Verify: no crash, no empty error screen, page is still interactive
+except playwright.sync_api.TimeoutError:
+    log('CATEGORY_RESULT|empty_input_handling|FAILED|90-second selector timeout — chatbot did not respond in time|0')
 ```
 
 Verify the input field is still present and interactable after the empty submission.
@@ -240,7 +298,17 @@ $PYTHON _cbt_run/test_script.py 2>&1 | tee _cbt_run/execution.log
 
 Read `_cbt_run/log.txt`. Parse each pipe-delimited line into the `CATEGORY_RESULTS` structure.
 
+**If `log.txt` is missing or empty**, the Playwright script crashed before logging any results. Read the last 20 lines of `_cbt_run/execution.log` and surface them as a BLOCKED overall result:
+
+```
+CATEGORY_RESULT|script_crash|BLOCKED|Playwright script exited before writing any results. Last output: {last_20_lines_of_execution.log}|0
+```
+
+Pass this directly to `skills/post-test-report/SKILL.md` — skip Phase 3. The overall verdict is `BLOCKED`.
+
 **If the login entry has status `BLOCKED`:** all 6 categories will be `NOT_RUN`. Skip Phase 3 entirely — there are no responses to judge. Pass `CATEGORY_RESULTS` directly to `skills/post-test-report/SKILL.md`. The overall verdict is `BLOCKED`.
+
+**If any Q&A pair has `actual_response` equal to `__RESPONSE_CAPTURE_FAILED__`**, replace it with the display string `(response capture failed — no matching bot message element found)` before passing to Phase 3. The judge must mark that pair FAIL.
 
 For any FAILED or BLOCKED category, include the error detail captured from the exception or timeout in the `detail` field of `CATEGORY_RESULTS`.
 
