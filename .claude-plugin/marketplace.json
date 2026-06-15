@@ -161,6 +161,21 @@
       "category": "testing",
       "keywords": ["chatbot-testing", "ai-testing", "playwright", "conversational-ai", "qa", "browser-testing", "llm-judge", "github", "azure-devops"],
       "license": "MIT"
+    },
+    {
+      "name": "pr-descriptor",
+      "source": "./plugins/pr-descriptor",
+      "description": "An intelligent, cross-ecosystem PR Description Agent for GitHub and Azure DevOps that automatically generates context-aware summaries via webhook triggers. It uses language-agnostic intelligence to analyze code diffs, completely overwriting the existing description on updates to maintain a single source of truth, while an internal Knowledge Creation loop continuously refines its repository context without static files.",
+      "version": "0.0.1",
+      "author": {
+        "name": "99x",
+        "email": "xianix-agent@99x.io"
+      },
+      "homepage": "https://opensource.99x.io/xianix-team/",
+      "repository": "https://github.com/xianix-team/xianix-plugins-official",
+      "category": "documentation",
+      "keywords": ["pr-description", "pull-request", "automation", "webhook", "documentation", "azure-devops", "github"],
+      "license": "MIT"
     }
   ]
 }
