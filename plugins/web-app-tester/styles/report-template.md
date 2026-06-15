@@ -12,72 +12,119 @@ Reports are read by **developers, QA engineers, and product owners** reviewing a
 
 ## Report Structure
 
-The report is posted as a single comment. It has three mandatory sections — **Header**, **Summary table**, and **Detailed Step Log** — followed by an optional **Failed / Blocked Steps** roll-up.
+The report is posted as a single comment. It has five mandatory sections — **Header**, **Test Plan Summary**, **Step Results table**, **Overall Result**, and **Footer** — followed by an optional **Detailed Step Log** (FAILED / BLOCKED steps only) and an optional **Notes** block.
 
 ### 1. Header
 
 ```markdown
-🤖 web-app-tester — Test Execution Report
-URL tested: {TEST_URL}
-{IF IS_PRODUCTION}⚠️ Running in production environment. Executed read-only steps only.{END IF}
-Total: {N} | ✅ Passed: {X} | ❌ Failed: {Y} | 🔴 Blocked: {Z}
-Overall: {PASSED | FAILED | BLOCKED}
+## Web App Test Execution Report
+**Verdict:** {PASSED | FAILED | BLOCKED}
+**{PR | Issue | Work Item}:** #{ENTRY_ID} {ENTRY_TITLE}
+**Test URL:** {TEST_URL}{IF LOCAL_STACK} (local stack — {LOCAL_STACK_NOTE}){END IF}
+**Environment:** IS_PRODUCTION={true | false} ({read-only mode — write steps skipped | all steps executed})
+**Timestamp:** {ISO 8601 UTC timestamp of run start}
+**Duration:** {total run duration, e.g. 3.2s}
+**Browser:** Chromium headless
 ```
 
-### 2. Summary table
+`LOCAL_STACK_NOTE` is free-form (e.g. `Vercel preview protected by SSO`) — include it only when the test URL is a localhost address or the tester switched from a remote preview to a local stack.
 
-A one-row-per-step at-a-glance view. The `Attempts` column shows how many tries the step needed (1–3).
+### 2. Test Plan Summary
+
+A short paragraph (2–4 sentences) describing:
+
+- What the PR / issue / work item introduces or changes
+- What the test plan covers (the major areas exercised)
+
+Derive this from the PR title, description, and the generated or provided test plan. Write in past tense from the perspective of the test run ("This PR introduces … The test plan covers …").
 
 ```markdown
-## Summary
-
-| # | Step | Status | Attempts |
-|---|------|--------|----------|
-| 1 | {step description} | ✅ PASSED | 1 |
-| 2 | {step description} | ❌ FAILED | 3 |
-| 3 | {step description} | 🔴 BLOCKED | 3 |
+## Test Plan Summary
+{narrative paragraph}
 ```
 
-### 3. Detailed Step Log (mandatory — every step, including passing ones)
+### 3. Step Results table
 
-For **each** step in the result list, in order, emit one sub-section with the following exact fields. Steps that passed on the first try still get a full entry — this is the test execution record and must be complete.
+One row per step. The `Actual` column is what the post-step snapshot showed; `Expected` is the intended outcome. Both must be written in business language — one concise phrase each.
+
+```markdown
+## Step Results
+
+| # | Description | Status | Actual | Expected | Duration |
+|---|-------------|--------|--------|----------|----------|
+| 1 | {step description} | ✅ PASSED | {observed} | {expected} | {duration, e.g. 671ms} |
+| 2 | {step description} | ❌ FAILED | {observed} | {expected} | {duration} |
+| 3 | {step description} | 🔴 BLOCKED | {observed} | {expected} | — |
+```
+
+- `Duration` is the wall-clock time the step took. Show `—` for BLOCKED steps where execution could not start.
+- Do not truncate `Actual` or `Expected` — one sentence each is fine; use plain language.
+
+### 4. Overall Result
+
+A brief narrative section (3–8 bullet points) summarising the outcome. For PASSED runs, list the major behaviours verified. For FAILED / BLOCKED runs, state what broke and (for BLOCKED) what prevented execution — no suggested fixes.
+
+```markdown
+## Overall Result
+{X} / {TOTAL} steps {PASSED} — {Y} FAILED — {Z} BLOCKED
+
+{For PASSED:}
+All functionality introduced in this PR is working correctly:
+- {behaviour verified 1}
+- {behaviour verified 2}
+…
+
+{For FAILED or BLOCKED:}
+The run {failed | was blocked} on {N} step(s):
+- {short description of what did not pass and why — factual only}
+…
+```
+
+### 5. Detailed Step Log (conditional — FAILED and BLOCKED steps only)
+
+Emit this section only when the run contains at least one FAILED or BLOCKED step. For each such step, in order:
 
 ```markdown
 ## Detailed Step Log
 
 ### Step {N} — {step description}
-- **Action:** {plain-language description of what was attempted, e.g. "Click the Sign In button"}
-- **Target:** {role + accessible name of the element, or the URL for navigate; omit line if not applicable}
-- **Input:** {value entered, or `[REDACTED]` for secrets; omit line if the step had no input}
+- **Action:** {plain-language description of what was attempted}
+- **Target:** {role + accessible name of the element, or the URL for navigate; omit if not applicable}
+- **Input:** {value entered, or `[REDACTED]` for secrets; omit if no input}
 - **Expected:** {one sentence — the outcome the step was supposed to produce}
 - **Observed:** {one sentence — what the post-action snapshot actually showed}
-- **Status:** ✅ PASSED | ❌ FAILED | 🔴 BLOCKED
+- **Status:** ❌ FAILED | 🔴 BLOCKED
 - **Attempts:** {1..3}
-- **Screenshot:** {captured at point of failure (`_wat_screenshot_{N}.png`) | not applicable}
-- **Reason:** {only present when Status is FAILED or BLOCKED — short cause}
+- **Screenshot:** {`_wat_screenshot_{N}.png` captured at point of failure | not applicable}
+- **Reason:** {short cause — factual only}
 ```
 
 **Field rules:**
 
-- `Target`, `Input`, `Screenshot`, and `Reason` lines are **conditional** — omit them when not applicable rather than emitting empty values like `Target: —`.
-- `Action`, `Expected`, `Observed`, `Status`, and `Attempts` are **always** present, even for PASSED steps.
+- `Target`, `Input`, `Screenshot`, and `Reason` are **conditional** — omit them when not applicable.
+- `Action`, `Expected`, `Observed`, `Status`, `Attempts`, and `Reason` are **always** present for FAILED / BLOCKED steps.
 - Plain business language only. Do not describe Playwright commands, `eN` refs, CSS selectors, or YAML snapshots.
 
-### 4. Failed / Blocked Steps (only when applicable)
+For BLOCKED steps where retry attempts produced useful output, include a brief retry summary:
 
-When the run contains at least one FAILED or BLOCKED step, append a compact roll-up so reviewers can jump straight to problems without scrolling the full log:
+```markdown
+**Retry log:** attempt 1 — {what happened}; attempt 2 — {what happened}; attempt 3 — {final outcome}
+```
+
+### 6. Notes (optional)
+
+Include a `## Notes` block only when there is a **meaningful operational caveat** that is not already captured in the step results — for example, a Vercel preview protected by SSO that forced a local-stack fallback, or a known flaky external dependency. Do not add notes that merely restate step outcomes.
+
+### 7. Footer
+
+Always end the report with:
 
 ```markdown
 ---
-
-### Failed / Blocked Steps
-
-**Step {N} — {step description}**
-Reason: {short cause, same as in the detailed log}
-Screenshot: {captured at point of failure / not available}
+*Generated by Web App Tester — Python/Playwright (headless Chromium) — {MODEL_ID}*
 ```
 
-This section repeats information already in the Detailed Step Log on purpose — it's a quick-jump index, not the source of truth.
+`MODEL_ID` is the Claude model that produced the report (e.g. `claude-sonnet-4-6`).
 
 ---
 
@@ -98,7 +145,7 @@ A run with both FAILED and BLOCKED steps uses **BLOCKED** as the overall result.
 Write step descriptions in business language — describe the **user action and observed outcome**, not the technical mechanism.
 
 | ❌ Avoid | ✅ Prefer |
-|---|---|
+| --- | --- |
 | `mcp__playwright__browser_click called on #submit-btn` | `Click the Submit button on the registration form` |
 | `browser_fill input[name=email]` | `Fill in the email address field with a valid address` |
 | `assert .toast-message contains text` | `Verify success toast appears after form submission` |
@@ -108,7 +155,7 @@ Write step descriptions in business language — describe the **user action and 
 ## Step Status Rules
 
 | Status | When to use |
-|---|---|
+| --- | --- |
 | ✅ PASSED | Action completed AND expected outcome was observed |
 | ❌ FAILED | Action completed BUT expected outcome was NOT observed (wrong text, element absent, wrong page) |
 | 🔴 BLOCKED | Action could not be executed after 3 retries (element not found, navigation error, timeout, crash) |
@@ -117,25 +164,12 @@ A step that was **skipped due to production environment read-only mode** is mark
 
 ---
 
-## Retry Log (optional)
-
-For BLOCKED steps, if retry attempts produced informative output (e.g. element selector, error message), include a brief retry summary:
-
-```markdown
-**Step 3 — Verify order confirmation message**
-Reason: Element `.order-confirmation` not found after 3 retries (5s between each)
-Attempts: 1 — timeout after 5s; 2 — timeout after 5s; 3 — timeout after 5s
-Screenshot: captured at point of failure
-```
-
----
-
 ## Production Notice
 
-If `IS_PRODUCTION=true`, the report must include this notice immediately after the URL line:
+If `IS_PRODUCTION=true`, the Environment line in the header must read:
 
 ```
-⚠️ Running in production environment. Executed read-only steps only.
+IS_PRODUCTION=true (read-only mode — write steps skipped)
 ```
 
 Steps that were skipped due to this restriction are listed in the table as `🔴 BLOCKED` with reason `Skipped — production environment, read-only mode`.
@@ -146,22 +180,22 @@ Steps that were skipped due to this restriction are listed in the table as `🔴
 
 1. Never include authentication tokens, API keys, passwords, or secrets in any comment
 2. Never describe credential values — redact them as `[REDACTED]` if they appear in test data
-3. Screenshots are attached only for FAILED and BLOCKED steps
+3. Screenshots are referenced only for FAILED and BLOCKED steps
 4. The report comment is always a single comment — never split across multiple comments
 
 ---
 
 ## Report Boundaries (strictly enforced)
 
-**The report is strictly bounded to the sections defined above** — Header, Summary table, Detailed Step Log, and the optional Failed / Blocked roll-up. Nothing else.
+**The report is strictly bounded to the sections defined above.** Nothing else.
 
-✅ **Allowed and required** in the Detailed Step Log:
+✅ **Allowed and required:**
 - Factual description of the action attempted (plain language)
 - Factual description of the observed outcome from the post-action snapshot
 - The expected outcome as stated or implied by the test plan
-- Attempts count, screenshot reference, and short failure cause
+- Attempts count, screenshot reference, short failure cause, and timing
 
-❌ **Prohibited** anywhere in the report:
+❌ **Prohibited anywhere in the report:**
 - Suggested fixes, workarounds, or "you should try…" statements
 - Recommendations, advice, or test-improvement ideas
 - Root cause analysis (why the bug exists, where in the code it might live)

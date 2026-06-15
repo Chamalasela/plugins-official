@@ -24,6 +24,7 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 | `TEST_URL` | The URL the test plan will run against |
 | `IS_PRODUCTION` | Passed through unchanged |
 | `TEST_PLAN` | Either an existing plan from the content or one auto-generated from context |
+| `ENTRY_TITLE` | The PR title, issue title, or work item title — used in the report header |
 | `LINKED_PR_ID` | Azure DevOps only, `wi` entry: the PR linked to the work item (used for posting the report) |
 
 If a required output cannot be produced (e.g. no testable URL), this skill posts a comment and stops. Do not proceed to Phase 2.
@@ -222,4 +223,4 @@ Store the auto-generated plan as `TEST_PLAN`.
 
 ## Completion
 
-When this skill finishes successfully, hand off to `skills/run-playwright-session/SKILL.md` with `TEST_URL`, `IS_PRODUCTION`, `TEST_PLAN`, `PLATFORM`, `ENTRY_TYPE`, `ENTRY_ID`, and (if applicable) `LINKED_PR_ID` in scope.
+When this skill finishes successfully, hand off to `skills/run-playwright-session/SKILL.md` with `TEST_URL`, `IS_PRODUCTION`, `TEST_PLAN`, `ENTRY_TITLE`, `PLATFORM`, `ENTRY_TYPE`, `ENTRY_ID`, and (if applicable) `LINKED_PR_ID` in scope.

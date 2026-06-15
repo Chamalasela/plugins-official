@@ -1,6 +1,6 @@
 ---
 name: post-test-report
-description: Phase 3 of web-app-tester. Computes the overall verdict (PASSED / FAILED / BLOCKED) from the inline step results and composes a fully detailed test execution report — header, summary table, and per-step log documenting the action, expected outcome, observed outcome, attempts, status, and screenshot for every step. Posts via the correct provider (GitHub or Azure DevOps). For wi entry points on Azure DevOps, also posts a notification comment on the work item. The report is strictly bounded — factual execution record only, no recommendations or root-cause analysis.
+description: Phase 3 of web-app-tester. Computes the overall verdict (PASSED / FAILED / BLOCKED) from the inline step results and composes a fully detailed test execution report — rich header, test plan summary, enhanced step results table, overall result narrative, optional detailed log for failed/blocked steps, and footer. Posts via the correct provider (GitHub or Azure DevOps). For wi entry points on Azure DevOps, also posts a notification comment on the work item. The report is strictly bounded — factual execution record only, no recommendations or root-cause analysis.
 disable-model-invocation: true
 ---
 
@@ -12,12 +12,15 @@ This skill is invoked by the **orchestrator** agent. It is not a standalone slas
 
 | Variable | Source | Description |
 |---|---|---|
-| Inline result list | run-playwright-session | One entry per step: `{ n, desc, action: { verb, target, ref, input }, expected, observed, status, attempts, reason, screenshot }`. All fields populated for every step — see the Outputs section of `skills/run-playwright-session/SKILL.md`. |
+| Inline result list | run-playwright-session | One entry per step: `{ n, desc, action: { verb, target, ref, input }, expected, observed, status, attempts, duration_ms, reason, screenshot }`. All fields populated for every step. |
 | `TEST_URL` | gather-test-context | URL that was tested |
 | `IS_PRODUCTION` | orchestrator | Whether read-only mode was applied |
 | `ENTRY_TYPE` | orchestrator | `pr`, `issue`, or `wi` |
 | `ENTRY_ID` | orchestrator | PR number, issue number, or work item ID |
+| `ENTRY_TITLE` | gather-test-context | PR title, issue title, or work item title |
 | `PLATFORM` | orchestrator | `GitHub` or `AzureDevOps` |
+| `RUN_START_TIME` | run-playwright-session | ISO 8601 UTC timestamp of run start |
+| `RUN_DURATION_S` | run-playwright-session | Total run duration in seconds (one decimal place) |
 | `LINKED_PR_ID` | gather-test-context | Azure DevOps `wi` entry only: the PR linked to the work item |
 
 ## Outputs
@@ -31,7 +34,7 @@ A single report comment posted on the PR or issue, plus (for `wi` entry) a notif
 Determine the overall result from the per-step statuses:
 
 | Condition | Overall Result |
-|---|---|
+| --- | --- |
 | All steps passed | **PASSED** |
 | One or more steps failed (all steps were attempted) | **FAILED** |
 | One or more steps could not execute (element not found, page error, timeout, auth gate, production-mode skip) | **BLOCKED** |
@@ -44,65 +47,129 @@ Store as `OVERALL_RESULT`, `PASSED` (count), `FAILED` (count), `BLOCKED` (count)
 
 ## Step 2: Compose the Report Body
 
-Build the comment body using the **exact** structure defined in `styles/report-template.md`. The report comment must contain **only** the sections defined in that template (Header, Summary table, Detailed Step Log, optional Failed/Blocked roll-up). Do not add suggested fixes, recommendations, next steps, root cause analysis, explanations, or any content not defined in the template.
+Build the comment body using the **exact** structure defined in `styles/report-template.md`. Read that file before composing. The report must contain **only** the sections defined in that template. Do not add suggested fixes, recommendations, next steps, root cause analysis, or any content not defined in the template.
 
-The skeleton is:
+### 2a. Header
 
 ```
-🤖 web-app-tester (Webwright) — Test Execution Report
-URL tested: {TEST_URL}
-{IS_PRODUCTION ? "⚠️ Running in production environment. Executed read-only steps only." : ""}
-Total: N | ✅ Passed: X | ❌ Failed: Y | 🔴 Blocked: Z
-Overall: PASSED / FAILED / BLOCKED
+## Web App Test Execution Report
+**Verdict:** {OVERALL_RESULT emoji + text: ✅ PASSED | ❌ FAILED | 🔴 BLOCKED}
+**{PR | Issue | Work Item}:** #{ENTRY_ID} {ENTRY_TITLE}
+**Test URL:** {TEST_URL}{if localhost: " (local stack — {reason if known})"}
+**Environment:** IS_PRODUCTION={true|false} ({read-only mode — write steps skipped | all steps executed})
+**Timestamp:** {RUN_START_TIME}
+**Duration:** {RUN_DURATION_S}s
+**Browser:** Chromium headless
+```
 
-## Summary
+Determine the entry label from `ENTRY_TYPE`:
+- `pr` → `PR`
+- `issue` → `Issue`
+- `wi` → `Work Item`
 
-| # | Step | Status | Attempts |
-|---|------|--------|----------|
-| 1 | {desc} | ✅ PASSED | 1 |
-| 2 | {desc} | ❌ FAILED | 3 |
+If `TEST_URL` starts with `http://localhost` or `http://127.0.0.1`, append a parenthetical local-stack note. If there is a known reason for using a local stack (e.g. Vercel preview protected by SSO, detected from PR comments or context), include it; otherwise use `local stack`.
 
+### 2b. Test Plan Summary
+
+Write 2–4 sentences describing:
+1. What the PR / issue / work item introduces or changes (derive from `ENTRY_TITLE` and any PR description context available in scope)
+2. What the test plan covers — summarise the major areas exercised by the steps
+
+Use past tense from the perspective of the test run. Example:
+> This PR introduces a `/api/echo` backend endpoint and a corresponding frontend section. The test plan covers page load and heading visibility, presence and enablement of UI elements, the end-to-end echo flow (happy path, empty input, loading state), direct API contract verification, and mobile viewport rendering.
+
+```
+## Test Plan Summary
+{narrative paragraph}
+```
+
+### 2c. Step Results table
+
+One row per step from the result list, in order:
+
+```
+## Step Results
+
+| # | Description | Status | Actual | Expected | Duration |
+|---|-------------|--------|--------|----------|----------|
+| 1 | {desc} | ✅ PASSED | {observed} | {expected} | {duration_ms}ms |
+| 2 | {desc} | ❌ FAILED | {observed} | {expected} | {duration_ms}ms |
+| 3 | {desc} | 🔴 BLOCKED | {observed} | {expected} | — |
+```
+
+- `Duration` column: show `{duration_ms}ms` when `duration_ms` is a non-null integer; show `—` when `duration_ms` is null (BLOCKED steps that never started). Format durations ≥ 1000 ms as `{n}ms` still (e.g. `1240ms`) unless the value is ≥ 10 000 ms, in which case format as `{n.n}s`.
+- `Actual` = `observed` field; `Expected` = `expected` field. Both in plain business language, one phrase each.
+- Do not truncate or paraphrase — use the values from the result entry verbatim.
+
+### 2d. Overall Result
+
+```
+## Overall Result
+{PASSED} / {TOTAL} steps PASSED — {FAILED} FAILED — {BLOCKED} BLOCKED
+```
+
+For **PASSED** runs, add:
+
+```
+All functionality introduced in this PR is working correctly:
+- {one bullet per major behaviour verified, drawn from the step descriptions — group related steps into one bullet where natural}
+```
+
+For **FAILED or BLOCKED** runs, add:
+
+```
+The run {failed | was blocked} on {N} step(s):
+- {Step N — short description of what did not pass and the factual reason — no suggested fixes}
+```
+
+Keep this section factual. Do not add advice, next steps, or root cause analysis.
+
+### 2e. Detailed Step Log (conditional)
+
+Include this section **only** when `FAILED` > 0 or `BLOCKED` > 0. For each FAILED or BLOCKED step, in order:
+
+```
 ## Detailed Step Log
 
-### Step 1 — {desc}
+### Step {N} — {desc}
 - **Action:** {plain-language description of action.verb on action.target}
-- **Target:** {action.target}                       ← omit if not applicable
-- **Input:** {action.input}                         ← omit if null; show "[REDACTED]" for secrets
+- **Target:** {action.target}       ← omit if not applicable
+- **Input:** {action.input}         ← omit if null; show [REDACTED] for secrets
 - **Expected:** {expected}
 - **Observed:** {observed}
-- **Status:** ✅ PASSED
-- **Attempts:** 1
-
-### Step 2 — {desc}
-- **Action:** {plain-language description}
-- **Target:** {action.target}
-- **Input:** {action.input or [REDACTED]}
-- **Expected:** {expected}
-- **Observed:** {observed}
-- **Status:** ❌ FAILED
-- **Attempts:** 3
-- **Screenshot:** captured at point of failure (`_wat_screenshot_2.png`)
+- **Status:** ❌ FAILED | 🔴 BLOCKED
+- **Attempts:** {attempts}
+- **Screenshot:** {`_wat_screenshot_{N}.png` captured at point of failure | not applicable}
 - **Reason:** {reason}
+```
 
-[If any FAILED or BLOCKED steps exist, append the roll-up:]
+Omit `Target`, `Input`, `Screenshot` when not applicable. `Reason` is always present for FAILED / BLOCKED.
+
+### 2f. Notes (conditional)
+
+Include a `## Notes` block only for meaningful operational caveats (e.g. Vercel SSO forcing a local-stack fallback, known flaky external dependency). Skip entirely if there is nothing material to note.
+
+### 2g. Footer
+
+Always append at the very end:
+
+```
+---
+*Generated by Web App Tester — Python/Playwright (headless Chromium) — claude-sonnet-4-6*
+```
+
+Use the actual model ID if known from context; default to `claude-sonnet-4-6`.
 
 ---
 
-### Failed / Blocked Steps
+**Composition rules (always enforced):**
 
-**Step N — {desc}**
-Reason: {reason}
-Screenshot: {captured at point of failure / not available}
-```
-
-**Composition rules:**
-
-1. **Emit a Detailed Step Log entry for every step** in the result list — including PASSED steps. This is the test execution record; completeness is the whole point of the section.
-2. Translate each result entry's structured fields into the bullet lines verbatim. Do not paraphrase, embellish, or merge across steps.
-3. Step descriptions must be in **business language** — describe the user action and observed outcome, not the Playwright command. See `Step Description Format` in `styles/report-template.md` for examples.
-4. **Omit** the `Target`, `Input`, `Screenshot`, and `Reason` lines when they are not applicable for the step (e.g. no `Input` line on a click; no `Screenshot` or `Reason` lines on a PASSED step). Do not emit empty placeholders.
-5. **Screenshots are described inline**, not embedded — neither GitHub nor Azure DevOps PR comments support direct file attachments via the CLI/REST flows used here, so the PNG files are not uploaded.
-6. **Never include secrets.** If `action.input` is `[REDACTED]`, keep it `[REDACTED]` in the report. If you spot a credential-like value that was not redacted upstream, redact it here before posting.
+1. **Emit a Step Results table row for every step** — including PASSED steps.
+2. **Emit Detailed Step Log entries only for FAILED and BLOCKED steps.**
+3. Step descriptions must be in **business language** — describe the user action and observed outcome, not the Playwright command.
+4. **Omit** conditional fields when not applicable — do not emit empty placeholders.
+5. **Screenshots are described inline**, not embedded — the PNG files are not uploaded.
+6. **Never include secrets.** Keep `[REDACTED]` values redacted. If you spot a credential-like value that was not redacted upstream, redact it here before posting.
 
 Store as `REPORT_BODY`.
 

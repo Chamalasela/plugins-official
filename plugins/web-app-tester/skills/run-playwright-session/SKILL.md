@@ -34,10 +34,20 @@ A list of result entries (held inline, not written to a file). **Every step is d
   observed,                               # short plain-language statement of what the post-action snapshot showed
   status: PASSED | FAILED | BLOCKED,
   attempts,                               # 1..3 — how many tries it took (always 1 for first-try PASSED)
+  duration_ms,                            # wall-clock milliseconds from step start to step end (null for BLOCKED steps that never started)
   reason,                                 # null for PASSED; short failure/blocked cause otherwise
   screenshot                              # path to _wat_screenshot_N.png if captured, else null
 }
 ```
+
+Additionally, record at the run level:
+
+```
+RUN_START_TIME   # ISO 8601 UTC timestamp captured immediately before the first step executes
+RUN_DURATION_S   # total wall-clock seconds for the full Playwright session (one decimal place, e.g. 3.2)
+```
+
+Pass `RUN_START_TIME` and `RUN_DURATION_S` to Phase 3 along with the inline result list.
 
 Capture these fields as you execute each step — they are mandatory inputs for the Phase 3 report and cannot be reconstructed afterwards. Keep `desc`, `expected`, and `observed` in plain business language (one sentence each); they are read by developers, QA, and product owners in the posted comment.
 
@@ -164,6 +174,7 @@ Read the YAML output. If the snapshot shows a login/auth page and the test plan 
      observed: "<one sentence>",
      status: PASSED | FAILED | BLOCKED,
      attempts: <1..3>,
+     duration_ms: <integer milliseconds, or null for BLOCKED steps that never started>,
      reason: <null or short failure cause>,
      screenshot: <null or "_wat_screenshot_N.png">
    }
@@ -208,9 +219,9 @@ The script must follow this contract:
 
 1. **Log format** — every step writes exactly one line to `_wat_run/log.txt` in this pipe-delimited format:
    ```
-   STEP_RESULT|<n>|<STATUS>|<desc>|<reason>
+   STEP_RESULT|<n>|<STATUS>|<desc>|<reason>|<duration_ms>
    ```
-   `<STATUS>` is one of: `PASSED`, `FAILED`, `BLOCKED`
+   `<STATUS>` is one of: `PASSED`, `FAILED`, `BLOCKED`. `<duration_ms>` is the integer millisecond count for the step (`0` for BLOCKED steps that never started).
 
 2. **Per-step try/except** — wrap each step in its own `try/except` block so subsequent steps still run after a failure.
 
@@ -228,11 +239,14 @@ The script must follow this contract:
 import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
+import time
+
 IS_PRODUCTION = "${IS_PRODUCTION}" == "true"
 LOG = open("_wat_run/log.txt", "w")
+RUN_START = time.time()
 
-def log_step(n, status, desc, reason=""):
-    line = f"STEP_RESULT|{n}|{status}|{desc}|{reason}"
+def log_step(n, status, desc, reason="", duration_ms=0):
+    line = f"STEP_RESULT|{n}|{status}|{desc}|{reason}|{duration_ms}"
     LOG.write(line + "\n")
     LOG.flush()
     print(line)
@@ -264,35 +278,40 @@ with sync_playwright() as p:
     # (Agent writes one try/except block per step, adapted to the actual action)
 
     # Example step: click
+    _t = time.time()
     try:
         page.get_by_role("button", name="Submit").click(timeout=10000)
         page.screenshot(path="_wat_run/screenshots/step_1_passed.png")
-        log_step(1, "PASSED", "Click Submit button")
+        log_step(1, "PASSED", "Click Submit button", duration_ms=int((time.time()-_t)*1000))
     except Exception as e:
         page.screenshot(path="_wat_run/screenshots/step_1_fail.png")
-        log_step(1, "BLOCKED", "Click Submit button", str(e))
+        log_step(1, "BLOCKED", "Click Submit button", str(e), duration_ms=0)
 
     # Example step: fill (production guard)
     if IS_PRODUCTION:
-        log_step(2, "BLOCKED", "Fill contact form", "Skipped — production environment, read-only mode")
+        log_step(2, "BLOCKED", "Fill contact form", "Skipped — production environment, read-only mode", duration_ms=0)
     else:
+        _t = time.time()
         try:
             page.get_by_label("Email").fill("test@example.com", timeout=10000)
-            log_step(2, "PASSED", "Fill contact form")
+            log_step(2, "PASSED", "Fill contact form", duration_ms=int((time.time()-_t)*1000))
         except Exception as e:
             page.screenshot(path="_wat_run/screenshots/step_2_fail.png")
-            log_step(2, "BLOCKED", "Fill contact form", str(e))
+            log_step(2, "BLOCKED", "Fill contact form", str(e), duration_ms=0)
 
     # Example step: verify
+    _t = time.time()
     try:
         page.wait_for_selector("text=Success", timeout=10000)
-        log_step(3, "PASSED", "Verify success message is visible")
+        log_step(3, "PASSED", "Verify success message is visible", duration_ms=int((time.time()-_t)*1000))
     except Exception as e:
         page.screenshot(path="_wat_run/screenshots/step_3_fail.png")
-        log_step(3, "FAILED", "Verify success message is visible", "Success message not found after action")
+        log_step(3, "FAILED", "Verify success message is visible", "Success message not found after action", duration_ms=int((time.time()-_t)*1000))
 
     browser.close()
 
+RUN_DURATION_S = round(time.time() - RUN_START, 1)
+print(f"RUN_DURATION_S={RUN_DURATION_S}")
 LOG.close()
 ```
 
@@ -328,4 +347,4 @@ GitHub PR/issue comments do not support file attachments via `gh comment`, so th
 
 ## Completion
 
-When this skill finishes, hand off to `skills/post-test-report/SKILL.md` with the inline result list, `TEST_URL`, and `PRODUCTION_WARNING` in scope. The result list must contain one entry per step in `TEST_PLAN`, in order, each with **all** fields populated as specified in the Outputs section above. If any field is genuinely not applicable for a step (e.g. `action.ref` for a navigate, `action.input` for a click), set it to `null` rather than omitting it.
+When this skill finishes, hand off to `skills/post-test-report/SKILL.md` with the inline result list, `TEST_URL`, `PRODUCTION_WARNING`, `RUN_START_TIME`, and `RUN_DURATION_S` in scope. The result list must contain one entry per step in `TEST_PLAN`, in order, each with **all** fields populated as specified in the Outputs section above. If any field is genuinely not applicable for a step (e.g. `action.ref` for a navigate, `action.input` for a click, `duration_ms` for a BLOCKED step that never started), set it to `null` rather than omitting it.
