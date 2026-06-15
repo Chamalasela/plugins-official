@@ -55,7 +55,7 @@ Parse the arguments:
 - If the environment variable `ENVIRONMENT` is set to `production` (case-insensitive) → `IS_PRODUCTION=true`
 - Otherwise, or if `ENVIRONMENT` is not set → `IS_PRODUCTION=false`
 
-When `IS_PRODUCTION=true`, all data-modifying test steps are skipped and only read-only steps are executed. By default (`ENVIRONMENT` unset) all steps run. An operator sets `ENVIRONMENT=production` via `with-envs` in the Xianix Agent `rules.json` to restrict execution.
+When `IS_PRODUCTION=true`, all data-modifying test cases are skipped and only read-only test cases are executed. By default (`ENVIRONMENT` unset) all test cases run. An operator sets `ENVIRONMENT=production` via `with-envs` in the Xianix Agent `rules.json` to restrict execution.
 
 Store: `ENTRY_TYPE`, `ENTRY_ID`, `IS_PRODUCTION`. These are passed through to every phase.
 
@@ -114,7 +114,7 @@ If posting the starting comment fails, output a single warning line and continue
 
 Read and follow `skills/gather-test-context/SKILL.md`, passing in `IS_PRODUCTION`.
 
-It produces the variables `TEST_URL`, `IS_PRODUCTION`, `TEST_PLAN`, `ENTRY_TITLE`, and (for `wi` entry on Azure DevOps) `LINKED_PR_ID`. If a testable URL cannot be found, that skill posts a comment and stops the run — do not proceed to Phase 2 in that case.
+It produces the variables `TEST_URL`, `IS_PRODUCTION`, `TEST_PLAN`, `ENTRY_TITLE`, `PLAN_SOURCE`, and (for `wi` entry on Azure DevOps) `LINKED_PR_ID`. If a testable URL cannot be found, that skill posts a comment and stops the run — do not proceed to Phase 2 in that case.
 
 ---
 
@@ -128,7 +128,7 @@ RUN_START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `IS_PRODUCTION`, and `TEST_PLAN`.
 
-It produces an inline list of fully documented per-step results — one entry per step in `TEST_PLAN`, in order — with the shape:
+It produces an inline list of fully documented per-test-case results — one entry per test case in `TEST_PLAN`, in order — with the shape:
 
 ```text
 {
@@ -140,13 +140,13 @@ It produces an inline list of fully documented per-step results — one entry pe
 }
 ```
 
-It also produces `RUN_DURATION_S` (total wall-clock seconds, one decimal place). Every step (including PASSED ones) is recorded in full so Phase 3 can render a complete test execution log. The skill enforces the global execution rules (single browser session, retries, cleanup), honours `PRODUCTION_WARNING` by skipping any data-modifying step, and redacts credential inputs as `[REDACTED]`.
+It also produces `RUN_DURATION_S` (total wall-clock seconds, one decimal place). Every test case (including PASSED ones) is recorded in full so Phase 3 can render a complete test execution log. The skill enforces the global execution rules (single browser session, retries, cleanup), honours `PRODUCTION_WARNING` by skipping any data-modifying test case, and redacts credential inputs as `[REDACTED]`.
 
 ---
 
 ## Phase 3 — Post Test Execution Report
 
-Read and follow `skills/post-test-report/SKILL.md`, passing in the inline result list, `TEST_URL`, `IS_PRODUCTION`, `ENTRY_TYPE`, `ENTRY_ID`, `ENTRY_TITLE`, `PLATFORM`, `RUN_START_TIME`, `RUN_DURATION_S`, and (if applicable) `LINKED_PR_ID`.
+Read and follow `skills/post-test-report/SKILL.md`, passing in the inline result list, `TEST_URL`, `IS_PRODUCTION`, `ENTRY_TYPE`, `ENTRY_ID`, `ENTRY_TITLE`, `PLAN_SOURCE`, `PLATFORM`, `RUN_START_TIME`, `RUN_DURATION_S`, and (if applicable) `LINKED_PR_ID`.
 
 It computes the overall verdict (`PASSED` / `FAILED` / `BLOCKED`), composes the report body strictly per `styles/report-template.md`, and posts it via the correct provider:
 
@@ -160,7 +160,7 @@ It computes the overall verdict (`PASSED` / `FAILED` / `BLOCKED`), composes the 
 After Phase 3 posts the report, the post-test-report skill writes the final confirmation line:
 
 ```text
-web-app-tester complete for {ENTRY_TYPE} #{ENTRY_ID}: {OVERALL_RESULT} — {PASSED}/{TOTAL} steps passed
+web-app-tester complete for {ENTRY_TYPE} #{ENTRY_ID}: {OVERALL_RESULT} — {PASSED}/{TOTAL} test cases passed
 ```
 
 That is the only output the user sees from this orchestrator on a successful run.
