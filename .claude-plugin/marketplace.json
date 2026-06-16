@@ -176,6 +176,21 @@
       "category": "documentation",
       "keywords": ["pr-description", "pull-request", "automation", "webhook", "documentation", "azure-devops", "github"],
       "license": "MIT"
+    },
+    {
+      "name": "release-note-maintainer",
+      "source": "./plugins/release-note-maintainer",
+      "description": "An intelligent, cross-ecosystem Release Note Maintainer Agent for GitHub and Azure DevOps that automatically generates structured release notes when a new git tag is pushed. Language-agnostic — analyzes merged pull requests, commit histories, breaking changes, and linked work items since the previous tag. Publishes to GitHub Releases or an Azure DevOps Wiki page. Dynamically scaffolds universal release note guidelines when no prior release pattern exists.",
+      "version": "0.0.1",
+      "author": {
+        "name": "99x",
+        "email": "xianix-agent@99x.io"
+      },
+      "homepage": "https://opensource.99x.io/xianix-team/",
+      "repository": "https://github.com/xianix-team/xianix-plugins-official",
+      "category": "documentation",
+      "keywords": ["release-notes", "changelog", "git-tag", "automation", "webhook", "documentation", "azure-devops", "github"],
+      "license": "MIT"
     }
   ]
 }
