@@ -111,7 +111,23 @@ Add the following to the issue/work item body and re-run:
 `credentials` and `knowledge` are optional. `url`, `widget.trigger_hint`, `widget.ready_hint`, and `widget.response_done_hint` are required.
 ````
 
-**If the block is found**, parse it as JSON and store as `KNOWLEDGE`. Validate the required fields:
+**If the block is found**, clean the raw block content before parsing. Some editors (VS Code, GitHub's file viewer) embed line numbers when content is copied. Strip them with:
+
+```python
+import re, json
+
+raw = """<extracted block content>"""
+
+# Strip line-number prefixes: leading spaces + digits + spaces at start of each line
+cleaned = '\n'.join(
+    re.sub(r'^\s*\d+\s+', '', line) if re.match(r'^\s*\d+\s', line) else line
+    for line in raw.splitlines()
+)
+
+KNOWLEDGE = json.loads(cleaned)
+```
+
+Parse the cleaned content as JSON and store as `KNOWLEDGE`. Validate the required fields:
 
 | Field | Required |
 |---|---|
@@ -148,6 +164,7 @@ Immediately after extracting the block — before launching the browser — post
 Write the starting comment body to `/tmp/cbt_starting.md`. Before running the command, resolve the three placeholder values from `KNOWLEDGE`:
 
 - `{FUNCTIONAL_ACCURACY_NOTE}` → `"{n} Q&A pairs"` (where n = length of `KNOWLEDGE.knowledge`) if the array exists and is non-empty; otherwise `"⚠️ Will be skipped — no Q&A pairs in test case"`
+- `{CONVERSATION_FLOW_ROW}` → `\n| 6 | Conversation Flow | {n} steps |` (where n = length of `KNOWLEDGE.conversation_flow`) if the array exists and is non-empty; otherwise omit (empty string)
 - `{LOGIN_LINE}` → `\n🔐 Login will be attempted before testing begins.` if `KNOWLEDGE.credentials` exists; otherwise omit (empty string)
 - `{TEST_URL}` → the URL being tested
 
@@ -167,6 +184,7 @@ pathlib.Path('/tmp/cbt_starting.md').write_text(
     '| 3 | Fallback Handling | |\n'
     '| 4 | Response Latency | |\n'
     '| 5 | Conversation Continuity | |\n'
+    '{CONVERSATION_FLOW_ROW}'
     '| 6 | Empty Input Handling | |{LOGIN_LINE}\n',
     encoding='utf-8'
 )
@@ -187,7 +205,7 @@ Read and follow `skills/gather-test-context/SKILL.md`.
 
 Inputs: `TEST_URL`, `KNOWLEDGE`, `LITE_MODE`.
 
-This phase outputs: `REQUIRES_LOGIN`.
+This phase outputs: `REQUIRES_LOGIN`, `HAS_CONVERSATION_FLOW`.
 
 ---
 
@@ -206,7 +224,7 @@ After Phase 1 completes, check if `PHASE1_BLOCK` is set. If it is:
 
 ## Phase 2 — Run Playwright Session
 
-Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `REQUIRES_LOGIN`, `KNOWLEDGE`, and `LITE_MODE`.
+Read and follow `skills/run-playwright-session/SKILL.md`, passing in `TEST_URL`, `REQUIRES_LOGIN`, `HAS_CONVERSATION_FLOW`, `KNOWLEDGE`, and `LITE_MODE`.
 
 This phase outputs: `CATEGORY_RESULTS` — a structured list of results per test category, including verbatim bot responses for all Q&A pairs.
 
