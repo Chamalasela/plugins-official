@@ -13,7 +13,7 @@ Execute all steps autonomously without pausing for user input. Do not ask for co
 
 **Global execution rules (apply to every phase):**
 - **DO NOT use `playwright-cli`, `npx`, `npm`, or Node.js for browser automation — Python `playwright` only.**
-- Always delete `_cbt_run/` after the run, even if execution fails.
+- Always delete `_cbt_run/`, `/tmp/cbt_body.txt`, and `/tmp/cbt_knowledge.json` after the run, even if execution fails.
 - Never install Python packages globally except `playwright` itself.
 - Use `python` on Windows, `python3` on Linux/macOS — detect with `command -v python3 2>/dev/null || command -v python`.
 - Never include credentials, tokens, or secrets in any posted comment.
@@ -111,21 +111,54 @@ Add the following to the issue/work item body and re-run:
 `credentials` and `knowledge` are optional. `url`, `widget.trigger_hint`, `widget.ready_hint`, and `widget.response_done_hint` are required.
 ````
 
-**If the block is found**, clean the raw block content before parsing. Some editors (VS Code, GitHub's file viewer) embed line numbers when content is copied. Strip them with:
+**If the block is found**, extract and parse it by running this pipeline — do not embed raw content in a Python string literal:
 
-```python
-import re, json
+```bash
+# Step 1: write the raw issue/work item body to a temp file
+# For GitHub:
+gh issue view ${ISSUE_NUMBER} --repo ${GITHUB_OWNER}/${GITHUB_REPO} --json body --jq '.body' > /tmp/cbt_body.txt
 
-raw = """<extracted block content>"""
+# Step 2: extract the chatbot-test block and parse it with Python
+python3 << 'PYEOF'
+import re, json, sys
 
-# Strip line-number prefixes: leading spaces + digits + spaces at start of each line
+body = open('/tmp/cbt_body.txt', encoding='utf-8').read()
+start_marker = '```chatbot-test\n'
+start = body.find(start_marker)
+if start == -1:
+    print('BLOCK_NOT_FOUND')
+    sys.exit(0)
+start += len(start_marker)
+end = body.find('\n```', start)
+raw = body[start:end].strip()
+
+# Strip embedded line-number prefixes (e.g. "   10       \"name\":" → "\"name\":")
 cleaned = '\n'.join(
     re.sub(r'^\s*\d+\s+', '', line) if re.match(r'^\s*\d+\s', line) else line
     for line in raw.splitlines()
 )
 
-KNOWLEDGE = json.loads(cleaned)
+try:
+    data = json.loads(cleaned)
+    open('/tmp/cbt_knowledge.json', 'w', encoding='utf-8').write(json.dumps(data))
+    print('KNOWLEDGE_COUNT=' + str(len(data.get('knowledge', []))))
+    print('FLOW_COUNT=' + str(len(data.get('conversation_flow', []))))
+    print('PARSE_OK')
+except json.JSONDecodeError as e:
+    print('PARSE_ERROR: ' + str(e))
+    sys.exit(1)
+PYEOF
 ```
+
+Read the output. If `BLOCK_NOT_FOUND` was printed, post the BLOCKED comment below and stop. If `PARSE_ERROR` was printed, post a BLOCKED comment with the parse error and stop.
+
+Otherwise read `KNOWLEDGE` from `/tmp/cbt_knowledge.json`:
+
+```bash
+python3 -c "import json; d=json.load(open('/tmp/cbt_knowledge.json', encoding='utf-8')); print(json.dumps(d))"
+```
+
+Store the parsed object as `KNOWLEDGE`. Note `KNOWLEDGE_COUNT` and `FLOW_COUNT` from the script output — use these when composing the "test in progress" comment.
 
 Parse the cleaned content as JSON and store as `KNOWLEDGE`. Validate the required fields:
 
@@ -163,8 +196,8 @@ Immediately after extracting the block — before launching the browser — post
 
 Write the starting comment body to `/tmp/cbt_starting.md`. Before running the command, resolve the three placeholder values from `KNOWLEDGE`:
 
-- `{FUNCTIONAL_ACCURACY_NOTE}` → `"{n} Q&A pairs"` (where n = length of `KNOWLEDGE.knowledge`) if the array exists and is non-empty; otherwise `"⚠️ Will be skipped — no Q&A pairs in test case"`
-- `{CONVERSATION_FLOW_ROW}` → `\n| 6 | Conversation Flow | {n} steps |` (where n = length of `KNOWLEDGE.conversation_flow`) if the array exists and is non-empty; otherwise omit (empty string)
+- `{FUNCTIONAL_ACCURACY_NOTE}` → `"{KNOWLEDGE_COUNT} Q&A pairs"` if `KNOWLEDGE_COUNT > 0`; otherwise `"⚠️ Will be skipped — no Q&A pairs in test case"`
+- `{CONVERSATION_FLOW_ROW}` → `\n| 6 | Conversation Flow | {FLOW_COUNT} steps |` if `FLOW_COUNT > 0`; otherwise omit (empty string)
 - `{LOGIN_LINE}` → `\n🔐 Login will be attempted before testing begins.` if `KNOWLEDGE.credentials` exists; otherwise omit (empty string)
 - `{TEST_URL}` → the URL being tested
 
