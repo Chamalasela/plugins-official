@@ -197,8 +197,8 @@ Immediately after extracting the block — before launching the browser — post
 Write the starting comment body to `/tmp/cbt_starting.md`. Before running the command, resolve the three placeholder values from `KNOWLEDGE`:
 
 - `{FUNCTIONAL_ACCURACY_NOTE}` → `"{KNOWLEDGE_COUNT} Q&A pairs"` if `KNOWLEDGE_COUNT > 0`; otherwise `"⚠️ Will be skipped — no Q&A pairs in test case"`
-- `{CONVERSATION_FLOW_ROW}` → `\n| 6 | Conversation Flow | {FLOW_COUNT} steps |` if `FLOW_COUNT > 0`; otherwise omit (empty string)
-- `{LOGIN_LINE}` → `\n🔐 Login will be attempted before testing begins.` if `KNOWLEDGE.credentials` exists; otherwise omit (empty string)
+- `{CONVERSATION_FLOW_ROW}` → `| 6 | Conversation Flow | {FLOW_COUNT} steps |\n` if `FLOW_COUNT > 0`; otherwise omit (empty string)
+- `{LOGIN_LINE}` → `\n🔐 Login will be attempted before testing begins.` if `KNOWLEDGE.credentials` exists; otherwise empty string
 - `{TEST_URL}` → the URL being tested
 
 Then run with the placeholders substituted:
@@ -218,7 +218,8 @@ pathlib.Path('/tmp/cbt_starting.md').write_text(
     '| 4 | Response Latency | |\n'
     '| 5 | Conversation Continuity | |\n'
     '{CONVERSATION_FLOW_ROW}'
-    '| 6 | Empty Input Handling | |{LOGIN_LINE}\n',
+    '| 6 | Empty Input Handling | |\n'
+    '{LOGIN_LINE}',
     encoding='utf-8'
 )
 "
