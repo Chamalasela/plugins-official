@@ -45,10 +45,10 @@ Store the test account password in **Xianix Agentri Studio Secrets** with the ke
 To enable result persistence and accuracy tracking across runs:
 
 1. Create a GitHub repository (e.g., `your-org/chatbot-test-results`).
-2. Set the `CHATBOT_RESULTS_REPO` environment variable to `your-org/chatbot-test-results`.
-3. Ensure `GITHUB_TOKEN` (or `GH_TOKEN`) has write access to that repository.
+2. Set the `CHATBOT-RESULTS-REPO` environment variable to `your-org/chatbot-test-results`.
+3. Create a GitHub PAT with write access to that repository and set it as `CHATBOT-RESULTS-GITHUB-TOKEN`.
 
-If `CHATBOT_RESULTS_REPO` is not set, Phase 5 is silently skipped and the run still completes normally.
+If `CHATBOT-RESULTS-REPO` is not set, Phase 5 is silently skipped and the run still completes normally.
 
 ---
 

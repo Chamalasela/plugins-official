@@ -24,8 +24,8 @@ This skill is invoked by the **orchestrator** agent after Phase 4. It is not a s
 
 | Variable | Purpose |
 |---|---|
-| `CHATBOT_RESULTS_REPO` | GitHub repo for results (e.g. `xianix-team/chatbot-test-results`). If not set, this phase is skipped. |
-| `GITHUB_TOKEN` | Auth token for cloning and pushing to the results repo. Falls back to `GH_TOKEN` if not set. |
+| `CHATBOT-RESULTS-REPO` | GitHub repo for results (e.g. `xianix-team/chatbot-test-results`). If not set, this phase is skipped. |
+| `CHATBOT-RESULTS-GITHUB-TOKEN` | Auth token for cloning and pushing to the results repo. If not set, this phase is skipped. |
 
 ---
 
@@ -36,13 +36,13 @@ Run:
 ```bash
 python3 -c "
 import os, sys
-repo = os.environ.get('CHATBOT_RESULTS_REPO', '').strip()
-token = os.environ.get('GITHUB_TOKEN', os.environ.get('GH_TOKEN', '')).strip()
+repo = os.environ.get('CHATBOT-RESULTS-REPO', '').strip()
+token = os.environ.get('CHATBOT-RESULTS-GITHUB-TOKEN', '').strip()
 if not repo:
-    print('SKIP: CHATBOT_RESULTS_REPO not set — skipping result persistence')
+    print('SKIP: CHATBOT-RESULTS-REPO not set — skipping result persistence')
     sys.exit(0)
 if not token:
-    print('SKIP: GITHUB_TOKEN not set — skipping result persistence')
+    print('SKIP: CHATBOT-RESULTS-GITHUB-TOKEN not set — skipping result persistence')
     sys.exit(0)
 print('PREREQS_OK')
 print('RESULTS_REPO=' + repo)
@@ -90,8 +90,9 @@ PYEOF
 ## Step 4: Clone the Results Repo
 
 ```bash
-RESULTS_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN}}"
-git clone "https://x-access-token:${RESULTS_TOKEN}@github.com/${RESULTS_REPO}.git" /tmp/cbt_results_repo 2>&1
+CBT_RESULTS_TOKEN=$(python3 -c "import os; print(os.environ.get('CHATBOT-RESULTS-GITHUB-TOKEN', ''))")
+CBT_RESULTS_REPO=$(python3 -c "import os; print(os.environ.get('CHATBOT-RESULTS-REPO', ''))")
+git clone "https://x-access-token:${CBT_RESULTS_TOKEN}@github.com/${CBT_RESULTS_REPO}.git" /tmp/cbt_results_repo 2>&1
 ```
 
 If the clone fails (non-zero exit), output a warning line and stop Phase 5:
