@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Chatbot Tester orchestrator. Accepts a GitHub issue URL, Azure DevOps work item URL, or a direct app URL. Infers platform from the URL pattern, fetches the chatbot-test block from the issue/work item, and runs four sequential phases — gather test context, run a Playwright browser session, judge responses with a batched LLM call, and post the test report. Browser automation uses Python playwright — NOT playwright-cli, npx, or Node.js.
+description: Chatbot Tester orchestrator. Accepts a GitHub issue URL, Azure DevOps work item URL, or a direct app URL. Infers platform from the URL pattern, fetches the chatbot-test block from the issue/work item, and runs five sequential phases — gather test context, run a Playwright browser session, judge responses with a batched LLM call, post the test report, and persist results to a GitHub repository. Browser automation uses Python playwright — NOT playwright-cli, npx, or Node.js.
 tools: Read, Bash, Agent
 model: inherit
 ---
@@ -92,6 +92,7 @@ Add the following to the issue/work item body and re-run:
 
 ```chatbot-test
 {
+  "name": "my-chatbot",
   "url": "https://your-app-url.com",
   "widget": {
     "trigger_hint": "description of how to open the chatbot",
@@ -108,7 +109,7 @@ Add the following to the issue/work item body and re-run:
 }
 ```
 
-`credentials` and `knowledge` are optional. `url`, `widget.trigger_hint`, `widget.ready_hint`, and `widget.response_done_hint` are required.
+`name`, `credentials`, and `knowledge` are optional. `url`, `widget.trigger_hint`, `widget.ready_hint`, and `widget.response_done_hint` are required.
 ````
 
 **If the block is found**, extract and parse it by running this pipeline — do not embed raw content in a Python string literal:
@@ -174,6 +175,32 @@ Parse the cleaned content as JSON and store as `KNOWLEDGE`. Validate the require
 If any required field is missing, post a BLOCKED comment listing exactly which fields are absent (same template as above, with a note identifying the missing fields) and stop.
 
 Set `TEST_URL` from `KNOWLEDGE.url`.
+
+---
+
+## Derive Chatbot Name
+
+After setting `TEST_URL`, derive `CHATBOT_NAME`:
+
+1. If `KNOWLEDGE.name` is set and non-empty: use that value.
+2. Otherwise: extract the hostname from `TEST_URL` (e.g., `online.superoffice.com` from `https://online.superoffice.com/chat`).
+
+In both cases, sanitize the value: lowercase, replace spaces and any character that is not `a-z`, `0-9`, or `-` with hyphens, collapse consecutive hyphens into one, strip leading and trailing hyphens.
+
+Run:
+
+```bash
+python3 -c "
+import re, urllib.parse
+raw = '{KNOWLEDGE_NAME_OR_HOSTNAME}'  # substitute KNOWLEDGE.name if set, else hostname from TEST_URL
+sanitized = raw.lower()
+sanitized = re.sub(r'[^a-z0-9]+', '-', sanitized)
+sanitized = sanitized.strip('-')
+print('CHATBOT_NAME=' + sanitized)
+"
+```
+
+Store as `CHATBOT_NAME`.
 
 ---
 
@@ -281,11 +308,21 @@ Read and follow `skills/post-test-report/SKILL.md`, passing in `JUDGED_RESULTS`,
 For issue/wi runs: posts report as a comment via the correct provider.
 For direct URL runs: writes `chatbot-test-report.md` in the current directory.
 
+Capture `OVERALL_VERDICT` and `PASSED_COUNT` from Phase 4's completion line output.
+
+---
+
+## Phase 5 — Persist Results
+
+Read and follow `skills/persist-results/SKILL.md`, passing in `JUDGED_RESULTS`, `TEST_URL`, `ENTRY_TYPE`, `ENTRY_ID`, `PLATFORM`, `OVERALL_VERDICT`, `CHATBOT_NAME`, and `LITE_MODE`.
+
+This phase writes JSON + CSV result files and updates the README in the results repo. If `CHATBOT_RESULTS_REPO` is not set, Phase 5 is skipped with a warning and the run still completes normally.
+
 ---
 
 ## Final Output
 
-After Phase 4 completes, output exactly one line:
+After Phase 5 completes, output exactly one line:
 
 ```
 chatbot-tester complete for {ENTRY_TYPE} {ENTRY_ID_OR_URL}: {OVERALL_VERDICT} — {PASSED_COUNT}/{TOTAL_CATEGORIES} categories passed
