@@ -36,8 +36,8 @@ Run:
 ```bash
 python3 -c "
 import os, sys
-repo = os.environ.get('CHATBOT-RESULTS-REPO', '').strip()
-token = os.environ.get('CHATBOT-RESULTS-GITHUB-TOKEN', '').strip()
+repo = (os.environ.get('CHATBOT-RESULTS-REPO') or os.environ.get('CHATBOT_RESULTS_REPO', '')).strip()
+token = (os.environ.get('CHATBOT-RESULTS-GITHUB-TOKEN') or os.environ.get('CHATBOT_RESULTS_GITHUB_TOKEN', '')).strip()
 if not repo:
     print('SKIP: CHATBOT-RESULTS-REPO not set — skipping result persistence')
     sys.exit(0)
@@ -90,8 +90,8 @@ PYEOF
 ## Step 4: Clone the Results Repo
 
 ```bash
-CBT_RESULTS_TOKEN=$(python3 -c "import os; print(os.environ.get('CHATBOT-RESULTS-GITHUB-TOKEN', ''))")
-CBT_RESULTS_REPO=$(python3 -c "import os; print(os.environ.get('CHATBOT-RESULTS-REPO', ''))")
+CBT_RESULTS_TOKEN=$(python3 -c "import os; print(os.environ.get('CHATBOT-RESULTS-GITHUB-TOKEN') or os.environ.get('CHATBOT_RESULTS_GITHUB_TOKEN', ''))")
+CBT_RESULTS_REPO=$(python3 -c "import os; print(os.environ.get('CHATBOT-RESULTS-REPO') or os.environ.get('CHATBOT_RESULTS_REPO', ''))")
 git clone "https://x-access-token:${CBT_RESULTS_TOKEN}@github.com/${CBT_RESULTS_REPO}.git" /tmp/cbt_results_repo 2>&1
 ```
 

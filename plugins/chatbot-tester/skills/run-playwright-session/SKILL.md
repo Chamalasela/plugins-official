@@ -1,6 +1,6 @@
 ---
 name: run-playwright-session
-description: Phase 2 of chatbot-tester. Opens the target URL in headless Chromium, logs in if required, translates plain language widget hints to Playwright selectors, runs a responsiveness probe, and runs six test categories against the chatbot. If the bot does not respond to the initial probe within 30 seconds all categories are marked BLOCKED immediately and the session exits. Outputs structured category results with verbatim bot responses for all Q&A pairs.
+description: Phase 2 of chatbot-tester. Opens the target URL in headless Chromium, logs in if required, translates plain language widget hints to Playwright selectors, runs a responsiveness probe, and runs six test categories against the chatbot. If the bot does not complete a response to the initial probe within 60 seconds all categories are marked BLOCKED immediately and the session exits. Outputs structured category results with verbatim bot responses for all Q&A pairs.
 disable-model-invocation: true
 ---
 
@@ -212,25 +212,29 @@ except playwright.sync_api.TimeoutError:
 
 ### Bot Responsiveness Probe
 
-Runs immediately after Category 1 PASSES (`ui_available = True`). Sends a single "Hello" message and waits **30 seconds** for any bot response. If the bot does not respond, all remaining categories are marked `BLOCKED` and the script exits — no further testing is performed.
+Runs immediately after Category 1 PASSES (`ui_available = True`). Sends a single "Hello" message and waits up to **60 seconds** in two stages: 30 seconds for any bot element to appear, then 30 seconds for the response to complete (using `RESPONSE_DONE_SELECTOR`). This catches both completely silent bots and bots that show a "Thinking..." indicator but never finish. If either stage times out, all remaining categories are marked `BLOCKED` and the script exits.
 
 Skip this probe if `ui_available = False` (widget did not open); the remaining categories will each handle their own failures independently.
 
 ```python
-_PROBE_BLOCKED_REASON = 'Bot did not respond to initial probe within 30 seconds — all test categories skipped'
+_PROBE_BLOCKED_REASON = 'Bot did not complete a response to initial probe within 60 seconds — all test categories skipped'
 
 if ui_available:
     try:
         probe_input = page.wait_for_selector(READY_SELECTOR, timeout=10000)
         probe_input.fill('Hello')
         page.keyboard.press('Enter')
+        # Stage 1: wait for any bot element to appear (catches completely silent bots)
         page.wait_for_selector(
             '[class*="bot-message"], [class*="assistant"], [data-role="bot"], '
             '[class*="chat"] [class*="message"]:last-child, '
             '[class*="widget"] [class*="message"]:last-child',
             timeout=30000
         )
-        # Probe passed — bot is responsive, continue to all categories
+        # Stage 2: wait for the response to complete, not just appear (catches bots stuck in "Thinking...")
+        if RESPONSE_DONE_SELECTOR:
+            page.wait_for_selector(RESPONSE_DONE_SELECTOR, timeout=30000)
+        # Probe passed — bot responded and completed, continue to all categories
     except playwright.sync_api.TimeoutError:
         _blocked = ['functional_accuracy', 'fallback_handling', 'response_latency',
                     'conversation_continuity']

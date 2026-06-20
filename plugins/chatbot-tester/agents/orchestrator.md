@@ -260,6 +260,20 @@ If posting fails, output a single warning line and continue.
 
 ---
 
+## Pre-read All Phase Skill Files
+
+Before dispatching any phase, read all five skill files so the full workflow is in context:
+
+- `skills/gather-test-context/SKILL.md`
+- `skills/run-playwright-session/SKILL.md`
+- `skills/judge-responses/SKILL.md`
+- `skills/post-test-report/SKILL.md`
+- `skills/persist-results/SKILL.md`
+
+Do not skip any of these reads. Phase 5 (`persist-results`) **must always run** after Phase 4, unless `CHATBOT_RESULTS_REPO` is explicitly unset.
+
+---
+
 ## Phase 1 — Gather Test Context
 
 Read and follow `skills/gather-test-context/SKILL.md`.
@@ -280,6 +294,29 @@ After Phase 1 completes, check if `PHASE1_BLOCK` is set. If it is:
   ```
 
 - Stop. Do not proceed to Phase 2.
+
+---
+
+## Phase 2 Pre-Condition: 60-Second Probe Timeout
+
+This is a hard constraint that applies to Phase 2 before any test categories run.
+
+**The bot must produce a completely finished response to the probe message within 60 seconds.** "Finished" means the bot's reply is fully rendered and the input field is ready for the next message. A loading spinner, "Thinking…" indicator, or streaming-in-progress state does NOT count as finished — even if the bot eventually responds at 90 or 150 seconds.
+
+**Do not wait more than 60 seconds for the probe response.** If the bot has not produced a complete response within 60 seconds of the probe message being sent:
+
+1. Output these lines exactly (add `conversation_flow` if `HAS_CONVERSATION_FLOW` is true):
+   ```
+   CATEGORY_RESULT|functional_accuracy|BLOCKED|Bot did not complete a response to initial probe within 60 seconds — all test categories skipped|0
+   CATEGORY_RESULT|fallback_handling|BLOCKED|Bot did not complete a response to initial probe within 60 seconds — all test categories skipped|0
+   CATEGORY_RESULT|response_latency|BLOCKED|Bot did not complete a response to initial probe within 60 seconds — all test categories skipped|0
+   CATEGORY_RESULT|conversation_continuity|BLOCKED|Bot did not complete a response to initial probe within 60 seconds — all test categories skipped|0
+   CATEGORY_RESULT|empty_input_handling|BLOCKED|Bot did not complete a response to initial probe within 60 seconds — all test categories skipped|0
+   ```
+2. Set `CATEGORY_RESULTS` to these BLOCKED entries.
+3. Proceed directly to the Phase 2→Phase 3 Transition check — skip running any test categories.
+
+The 60-second limit is non-negotiable. The probe implementation (two-stage: 30s for any bot element + 30s for response completion) is in `skills/run-playwright-session/SKILL.md`.
 
 ---
 
@@ -321,7 +358,12 @@ Read and follow `skills/post-test-report/SKILL.md`, passing in `JUDGED_RESULTS`,
 For issue/wi runs: posts report as a comment via the correct provider.
 For direct URL runs: writes `chatbot-test-report.md` in the current directory.
 
-Capture `OVERALL_VERDICT` and `PASSED_COUNT` from Phase 4's completion line output.
+Capture `OVERALL_VERDICT` and `PASSED_COUNT` from Phase 4's completion line:
+```
+chatbot-tester phase4-complete: {OVERALL_VERDICT} — {PASSED_COUNT}/{TOTAL_CATEGORIES} categories passed
+```
+
+**Do not treat this line as the end of the workflow. Phase 5 must run next.**
 
 ---
 

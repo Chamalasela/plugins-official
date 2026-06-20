@@ -39,7 +39,7 @@ The probe failed if **all** of the following are true:
 If the probe failed, set `PROBE_BLOCKED = true` and store the banner below as `PROBE_BLOCKED_BANNER`:
 
 ```
-> ⚠️ **Bot Unresponsive** — The chatbot did not respond to an initial probe message within 30 seconds. All test categories were skipped and marked BLOCKED. This indicates the chatbot widget may be down, broken, or unreachable at the time of testing.
+> ⚠️ **Bot Unresponsive** — The chatbot did not complete a response to an initial probe message within 60 seconds. This may mean the widget is down, the bot is stuck in a loading state, or the service is unreachable. All test categories were skipped and marked BLOCKED.
 ```
 
 Otherwise set `PROBE_BLOCKED = false` and `PROBE_BLOCKED_BANNER = ""`.
@@ -92,8 +92,10 @@ If the `gh` or `curl` command exits with a non-zero status:
 
 ## Completion
 
-Output the final confirmation line:
+Output the following line so the orchestrator can capture `OVERALL_VERDICT` and `PASSED_COUNT` before proceeding to Phase 5:
 
 ```
-chatbot-tester complete for {ENTRY_TYPE} {ENTRY_ID_OR_URL}: {OVERALL_VERDICT} — {PASSED_COUNT}/{TOTAL_CATEGORIES} categories passed
+chatbot-tester phase4-complete: {OVERALL_VERDICT} — {PASSED_COUNT}/{TOTAL_CATEGORIES} categories passed
 ```
+
+**Do NOT output the final `chatbot-tester complete` line — that is the orchestrator's responsibility after Phase 5 finishes.**
