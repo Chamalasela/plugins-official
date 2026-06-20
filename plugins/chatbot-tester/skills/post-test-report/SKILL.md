@@ -27,9 +27,30 @@ Compute the overall verdict using the Overall Verdict table in `docs/verdict-log
 
 ---
 
+## Step 1.5: Check for Responsiveness Probe Failure
+
+Before composing the report, check whether the run was aborted by the bot responsiveness probe.
+
+The probe failed if **all** of the following are true:
+- `OVERALL_VERDICT` is `BLOCKED`
+- Every category in `JUDGED_RESULTS` has `status = BLOCKED`
+- At least one category `detail` contains the string `"initial probe"`
+
+If the probe failed, set `PROBE_BLOCKED = true` and store the banner below as `PROBE_BLOCKED_BANNER`:
+
+```
+> ⚠️ **Bot Unresponsive** — The chatbot did not respond to an initial probe message within 30 seconds. All test categories were skipped and marked BLOCKED. This indicates the chatbot widget may be down, broken, or unreachable at the time of testing.
+```
+
+Otherwise set `PROBE_BLOCKED = false` and `PROBE_BLOCKED_BANNER = ""`.
+
+---
+
 ## Step 2: Compose Report
 
 Build the report body strictly per `styles/report-template.md`. Do not add content outside the defined structure.
+
+If `PROBE_BLOCKED = true`, prepend `PROBE_BLOCKED_BANNER` to the report body, separated from the main content by a blank line.
 
 ---
 

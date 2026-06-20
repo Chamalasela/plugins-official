@@ -291,6 +291,19 @@ This phase outputs: `CATEGORY_RESULTS` — a structured list of results per test
 
 ---
 
+## Phase 2 → Phase 3 Transition: BLOCKED Check
+
+After Phase 2 completes, check whether all categories in `CATEGORY_RESULTS` have `status = BLOCKED`.
+
+**If all categories are BLOCKED** (e.g., bot responsiveness probe failed, or login failed):
+- Skip Phase 3 entirely — there are no responses to judge.
+- Set `JUDGED_RESULTS = CATEGORY_RESULTS` directly.
+- Proceed to Phase 4 with `JUDGED_RESULTS` in scope.
+
+**Otherwise** proceed to Phase 3 as normal.
+
+---
+
 ## Phase 3 — Judge Responses
 
 Delegate this phase entirely to a sub-agent with `model: claude-haiku-4-5-20251001`. Pass `CATEGORY_RESULTS` and `KNOWLEDGE` to the sub-agent and instruct it to read and follow `skills/judge-responses/SKILL.md`.
